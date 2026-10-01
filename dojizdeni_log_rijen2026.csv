@@ -1,1 +1,5 @@
 timestamp,route,trip_id,headsign,stop_id,delay_min,vehicle_label,car_drive_min,note
+2026-10-01 13:15:06,106,,NO_ACTIVE_VEHICLE,,,,,
+2026-10-01 13:15:06,S6,1362,Hlavní nádraží,U16406Z10,10.6,30115,,
+2026-10-01 13:15:06,S6,1401,Hlavní nádraží,U26802Z10,-0.1,30254,,
+2026-10-01 13:15:06,CAR,,,,,,19.2,
