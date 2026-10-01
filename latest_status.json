@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-01T17:53:02.252140+02:00",
+  "generated_at": "2026-10-01T17:57:54.975419+02:00",
   "car": {
-    "drive_min": 19.9,
+    "drive_min": 19.7,
     "note": "",
-    "eta": "18:13",
+    "eta": "18:18",
     "departure_time": "18:00",
-    "historical_avg_min": 19.9,
-    "historical_sample_size": 1
+    "historical_avg_min": 19.8,
+    "historical_sample_size": 2
   },
   "106": {
     "next_departure": "18:52",
