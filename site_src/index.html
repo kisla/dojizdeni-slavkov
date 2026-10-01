@@ -315,9 +315,23 @@
 </div>
 
 <script>
-  const REPO_RAW = "https://raw.githubusercontent.com/kisla/dojizdeni-slavkov/main";
-  const statusUrl = () => REPO_RAW + "/latest_status.json?t=" + Date.now();
-  const csvUrl = () => REPO_RAW + "/dojizdeni_log_rijen2026.csv?t=" + Date.now();
+  // raw.githubusercontent.com's CDN caches by path only (query strings are not part of
+  // the cache key, so appending "?t=..." does not bust it, and its max-age=300 can serve
+  // data up to 5 min stale after a push). Fetching through the exact commit SHA instead
+  // gives each commit its own, never-before-cached URL, guaranteeing fresh content.
+  const REPO_RAW = "https://raw.githubusercontent.com/kisla/dojizdeni-slavkov";
+  const COMMIT_API = "https://api.github.com/repos/kisla/dojizdeni-slavkov/commits/main";
+
+  async function latestCommitSha() {
+    try {
+      const resp = await fetch(COMMIT_API, { cache: "no-store", headers: { "Accept": "application/vnd.github+json" } });
+      if (!resp.ok) return "main";
+      const data = await resp.json();
+      return data.sha || "main";
+    } catch (e) {
+      return "main";
+    }
+  }
 
   const TRIGGER_URL = "https://api.github.com/repos/kisla/dojizdeni-slavkov/actions/workflows/on-demand-measure.yml/dispatches";
   const TRIGGER_TOKEN = "__GH_ACTIONS_PAT__";
@@ -449,8 +463,9 @@
   }
 
   async function loadAll() {
+    const sha = await latestCommitSha();
     try {
-      const statusResp = await fetch(statusUrl(), { cache: "no-store" });
+      const statusResp = await fetch(`${REPO_RAW}/${sha}/latest_status.json`, { cache: "no-store" });
       if (statusResp.ok) {
         renderCards(await statusResp.json());
       }
@@ -458,7 +473,7 @@
       document.getElementById("cards").innerHTML = '<div class="empty-state">Nepodařilo se načíst data.</div>';
     }
     try {
-      const csvResp = await fetch(csvUrl(), { cache: "no-store" });
+      const csvResp = await fetch(`${REPO_RAW}/${sha}/dojizdeni_log_rijen2026.csv`, { cache: "no-store" });
       if (csvResp.ok) {
         renderHistory(parseCsv(await csvResp.text()));
       }
