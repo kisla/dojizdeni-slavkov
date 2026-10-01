@@ -12,3 +12,8 @@ timestamp,route,trip_id,headsign,stop_id,delay_min,vehicle_label,car_drive_min,n
 2026-10-01 14:38:20,S6,1447,"Veselí nad Moravou, železniční stanice",U19316Z12,3.4,30418,,
 2026-10-01 14:38:20,S6,1409,"Židenice, nádraží",U16333Z10,-0.9,30124,,
 2026-10-01 14:38:20,CAR,,,,,,20.0,
+2026-10-01 14:45:33,106,,NO_ACTIVE_VEHICLE,,,,,
+2026-10-01 14:45:33,S6,1428,"Kyjov, železniční stanice",U26802Z10,0.2,30267,,
+2026-10-01 14:45:33,S6,1355,Hlavní nádraží,U16628Z10,-1.1,30145,,
+2026-10-01 14:45:33,S6,1447,"Veselí nad Moravou, železniční stanice",U19316Z12,3.4,30418,,
+2026-10-01 14:45:33,CAR,,,,,,20.9,
