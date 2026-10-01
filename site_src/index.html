@@ -190,6 +190,14 @@
     font-size: 0.82rem;
     color: var(--muted);
   }
+  .card .incident-note {
+    font-size: 0.8rem;
+    color: var(--warn);
+    background: var(--warn-soft);
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    line-height: 1.35;
+  }
   .badge {
     display: inline-flex;
     align-items: center;
@@ -386,6 +394,9 @@
         ? `${noun} v ${next} má obvykle ${data.historical_avg_delay_min} min zpoždění (z ${data.historical_sample_size} měření)`
         : `zatím bez historie pro odjezd ${next}`;
       const walkNote = data.walk_min ? `vč. ${data.walk_min} min chůze na místo` : "";
+      const incidentHtml = data.incident
+        ? `<div class="incident-note">⚠ ${data.incident.text}</div>`
+        : "";
       return `
         <div class="card">
           <div class="mode-label"><span class="mode-icon">${iconLabel}</span>${label}</div>
@@ -395,6 +406,7 @@
           ${delayBadge(data.live_delay_min)}
           <div class="sub">${hist}</div>
           <div class="sub">${walkNote}</div>
+          ${incidentHtml}
         </div>`;
     }
 

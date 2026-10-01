@@ -24,6 +24,7 @@ import datetime
 from zoneinfo import ZoneInfo
 import json
 import os
+import re
 import zipfile
 import io
 import urllib.request
@@ -68,6 +69,13 @@ WALK_MINUTES_TO_OFFICE = {
     "106": 8,   # UAN Zvonarka -> Vlnena (~560 m)
     "S6": 7,    # Hlavni nadrazi -> Vlnena (~460 m)
 }
+
+# Public, unauthenticated endpoint behind idsjmk.cz's own "Aktualni informace" banner
+# (homepage -> MIMORADNE UDALOSTI). Found via the site's own JS bundle - no automation
+# restriction like mapa.idsjmk.cz's API has. Returns short operational notices (traffic
+# jams, blocked stops, etc.) tagged with the affected line short names.
+TRAFFIC_TWEETS_URL = "https://www.idsjmk.cz/api/traffic-state/tweets"
+INCIDENT_MAX_AGE_MINUTES = 90
 
 
 def get_car_drive_minutes():
@@ -296,6 +304,40 @@ def estimate_office_arrival(route_name, trip_id, stop_times, live_delay_min, his
     return eta_str, dest_sched_str
 
 
+def strip_html(text):
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def get_incident_notes(now):
+    """Returns dict route_name -> {"text", "time"} for the most recent idsjmk.cz traffic
+    notice mentioning that route, among notices no older than INCIDENT_MAX_AGE_MINUTES.
+    Returns {} entries as None if the feed is unreachable or has nothing relevant."""
+    notes = {name: None for name in ROUTES_OF_INTEREST}
+    try:
+        data = json.loads(fetch(TRAFFIC_TWEETS_URL))
+    except Exception:
+        return notes
+    for route_name in ROUTES_OF_INTEREST:
+        best = None
+        for item in data:
+            if route_name not in item.get("lines", []):
+                continue
+            try:
+                item_time = datetime.datetime.fromisoformat(item["time"])
+            except Exception:
+                continue
+            age_min = (now - item_time).total_seconds() / 60
+            if age_min > INCIDENT_MAX_AGE_MINUTES or age_min < -5:
+                continue
+            if best is None or item_time > best[0]:
+                best = (item_time, item)
+        if best is not None:
+            notes[route_name] = {"text": strip_html(best[1]["body"]), "time": best[0].isoformat()}
+    return notes
+
+
 def main():
     now = datetime.datetime.now(PRAGUE_TZ)
     today = now.date()
@@ -359,6 +401,7 @@ def main():
 
     car_min, car_note = get_car_drive_minutes()
     car_slot = round_to_slot(now)
+    incident_notes = get_incident_notes(now)
 
     file_exists = os.path.exists(LOG_PATH)
     with open(LOG_PATH, "a", newline="", encoding="utf-8") as f:
@@ -419,6 +462,7 @@ def main():
             "dest_arrival_scheduled": dest_sched,
             "walk_min": WALK_MINUTES_TO_OFFICE[route_name],
             "eta": eta,
+            "incident": incident_notes[route_name],
         }
 
     with open(STATUS_PATH, "w", encoding="utf-8") as f:
