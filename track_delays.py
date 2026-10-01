@@ -171,8 +171,8 @@ def load_valid_service_ids(zf, service_date):
 
 
 def load_origin_departures(zf, trips, valid_service_ids):
-    """Returns dict route_name -> list of (trip_id, departure_time_str), for trips valid today,
-    departing from the Slavkov u Brna origin stop for that route."""
+    """Returns dict route_name -> list of (trip_id, departure_time_str, origin_stop_id), for
+    trips valid today, departing from the Slavkov u Brna origin stop for that route."""
     result = {name: [] for name in ROUTES_OF_INTEREST}
     with zf.open("stop_times.txt") as f:
         reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
@@ -184,22 +184,33 @@ def load_origin_departures(zf, trips, valid_service_ids):
             if service_id not in valid_service_ids:
                 continue
             if row["stop_id"] in ORIGIN_STOP_IDS[route_name]:
-                result[route_name].append((trip_id, row["departure_time"]))
+                result[route_name].append((trip_id, row["departure_time"], row["stop_id"]))
+    return result
+
+
+def load_platform_codes(zf, stop_ids):
+    """Returns dict stop_id -> platform_code ("" if not set in the feed)."""
+    result = {}
+    with zf.open("stops.txt") as f:
+        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
+        for row in reader:
+            if row["stop_id"] in stop_ids:
+                result[row["stop_id"]] = row.get("platform_code", "")
     return result
 
 
 def next_departure(origin_departures_for_route, now):
-    """Earliest (trip_id, departure_time_str, departure_dt) at/after now, or None if none remain today."""
+    """Earliest (trip_id, departure_time_str, origin_stop_id) at/after now, or None if none remain today."""
     now_seconds = now.hour * 3600 + now.minute * 60 + now.second
     best = None
-    for trip_id, dep_str in origin_departures_for_route:
+    best_seconds = None
+    for trip_id, dep_str, stop_id in origin_departures_for_route:
         h, m, s = (int(x) for x in dep_str.split(":"))
         dep_seconds = h * 3600 + m * 60 + s
-        if dep_seconds >= now_seconds and (best is None or dep_seconds < best[2]):
-            best = (trip_id, dep_str, dep_seconds)
-    if best is None:
-        return None
-    return best[0], best[1]
+        if dep_seconds >= now_seconds and (best is None or dep_seconds < best_seconds):
+            best = (trip_id, dep_str, stop_id)
+            best_seconds = dep_seconds
+    return best
 
 
 def historical_average_delay(route_name, departure_time):
@@ -349,6 +360,8 @@ def main():
         stop_times = load_stop_times_for_trips(zf, set(trips.keys()))
         valid_service_ids = load_valid_service_ids(zf, today)
         origin_departures = load_origin_departures(zf, trips, valid_service_ids)
+        all_origin_stop_ids = set().union(*ORIGIN_STOP_IDS.values())
+        platform_codes = load_platform_codes(zf, all_origin_stop_ids)
 
     # trip_id -> its scheduled Slavkov departure time ("HH:MM"), for tagging every logged
     # delay reading with the specific departure it belongs to (regardless of which stop the
@@ -356,7 +369,7 @@ def main():
     trip_departure_time = {
         trip_id: dep_str[:5]
         for route_name in ROUTES_OF_INTEREST
-        for trip_id, dep_str in origin_departures[route_name]
+        for trip_id, dep_str, _stop_id in origin_departures[route_name]
     }
 
     rt_data = fetch(GTFS_RT_URL)
@@ -444,18 +457,20 @@ def main():
         nd = next_departure(origin_departures[route_name], now)
         live_delay = None
         if nd is not None:
-            nd_trip_id, nd_dep_str = nd
+            nd_trip_id, nd_dep_str, nd_stop_id = nd
             for e in rows_by_route[route_name]:
                 if e["trip_id"] == nd_trip_id:
                     live_delay = e["delay_min"]
                     break
         nd_time = nd[1][:5] if nd else None
+        platform = platform_codes.get(nd[2], "") if nd else None
         avg_delay, sample_size = historical_average_delay(route_name, nd_time)
         eta, dest_sched = (None, None)
         if nd is not None:
             eta, dest_sched = estimate_office_arrival(route_name, nd[0], stop_times, live_delay, avg_delay)
         status[route_name] = {
             "next_departure": nd_time,  # "HH:MM"
+            "platform": platform or None,
             "live_delay_min": live_delay,
             "historical_avg_delay_min": avg_delay,
             "historical_sample_size": sample_size,

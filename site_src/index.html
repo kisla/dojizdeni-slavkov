@@ -394,6 +394,7 @@
         ? `${noun} v ${next} má obvykle ${data.historical_avg_delay_min} min zpoždění (z ${data.historical_sample_size} měření)`
         : `zatím bez historie pro odjezd ${next}`;
       const walkNote = data.walk_min ? `vč. ${data.walk_min} min chůze na místo` : "";
+      const platformNote = data.platform ? ` · nástupiště ${data.platform}` : "";
       const incidentHtml = data.incident
         ? `<div class="incident-note">⚠ ${data.incident.text}</div>`
         : "";
@@ -402,7 +403,7 @@
           <div class="mode-label"><span class="mode-icon">${iconLabel}</span>${label}</div>
           <div class="eta-label">odjezd</div>
           <div class="headline mono">${next}</div>
-          <div class="sub">dorazíte v <span class="mono">${eta}</span></div>
+          <div class="sub">dorazíte v <span class="mono">${eta}</span>${platformNote}</div>
           ${delayBadge(data.live_delay_min)}
           <div class="sub">${hist}</div>
           <div class="sub">${walkNote}</div>
@@ -481,12 +482,16 @@
     document.getElementById("history-body").innerHTML = html || '<tr><td colspan="5" class="empty-state">Zatím žádná data.</td></tr>';
   }
 
+  let lastGeneratedAt = null;
+
   async function loadAll() {
     const sha = await latestCommitSha();
     try {
       const statusResp = await fetch(`${REPO_RAW}/${sha}/latest_status.json`, { cache: "no-store" });
       if (statusResp.ok) {
-        renderCards(await statusResp.json());
+        const status = await statusResp.json();
+        renderCards(status);
+        lastGeneratedAt = status.generated_at || lastGeneratedAt;
       }
     } catch (e) {
       document.getElementById("cards").innerHTML = '<div class="empty-state">Nepodařilo se načíst data.</div>';
@@ -499,6 +504,7 @@
     } catch (e) {
       // history is non-critical
     }
+    return lastGeneratedAt;
   }
 
   const btn = document.getElementById("measure-btn");
@@ -524,12 +530,20 @@
       }
       msg.className = "ok";
       msg.textContent = "Měření spuštěno — výsledek bude za cca 1–2 minuty. Stránka se automaticky obnoví.";
+      const baselineGeneratedAt = lastGeneratedAt;
       setTimeout(() => {
         let tries = 0;
         const poll = setInterval(async () => {
           tries++;
-          await loadAll();
-          if (tries >= 8) clearInterval(poll);
+          const generatedAt = await loadAll();
+          const gotFreshData = generatedAt && generatedAt !== baselineGeneratedAt;
+          if (gotFreshData || tries >= 8) {
+            clearInterval(poll);
+            msg.className = gotFreshData ? "ok" : "error";
+            msg.textContent = gotFreshData
+              ? "Hotovo — data aktualizována (" + fmtTime(generatedAt) + ")."
+              : "Měření proběhlo, ale nová data se zatím neobjevila. Zkus obnovit stránku za chvíli.";
+          }
         }, 15000);
       }, 20000);
     } catch (e) {
