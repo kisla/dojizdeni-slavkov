@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-10-01T13:34:04.944033+02:00",
+  "car": {
+    "drive_min": 19.0,
+    "note": ""
+  },
+  "106": {
+    "next_departure": "13:52",
+    "live_delay_min": null,
+    "historical_avg_delay_min": null,
+    "historical_sample_size": 0
+  },
+  "S6": {
+    "next_departure": "14:08",
+    "live_delay_min": null,
+    "historical_avg_delay_min": 5.2,
+    "historical_sample_size": 2
+  }
+}
