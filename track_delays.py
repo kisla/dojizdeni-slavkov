@@ -38,7 +38,16 @@ ROUTES_OF_INTEREST = {"106": "bus", "S6": "train"}
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "gtfs_cache")
 STATIC_ZIP_PATH = os.path.join(CACHE_DIR, "gtfs.zip")
 LOG_PATH = os.path.join(os.path.dirname(__file__), "dojizdeni_log_rijen2026.csv")
+STATUS_PATH = os.path.join(os.path.dirname(__file__), "latest_status.json")
 STATIC_MAX_AGE_HOURS = 20
+
+# Platform stop_ids at the Slavkov u Brna origin stops (grouped by parent_station in stops.txt):
+# bus station (parent U16328N107) and train station (parent U16333N246).
+ORIGIN_STOP_IDS = {
+    "106": {"U16328Z2", "U16328Z3", "U16328Z8", "U16328Z10", "U16328Z7", "U16328Z1",
+            "U16328Z5", "U16328Z57", "U16328Z9", "U16328Z69", "U16328Z59", "U16328Z6", "U16328N107"},
+    "S6": {"U16333Z1", "U16333Z2", "U16333Z11", "U16333Z10", "U16333N246"},
+}
 
 # Polni 332, Slavkov u Brna -> Vlnena/Digiteq Automotive, Prizova 7, Brno-stred
 ROUTE_START_LONLAT = (16.8779297, 49.1509648)
@@ -105,14 +114,91 @@ def load_route_ids(zf):
 
 
 def load_relevant_trips(zf, route_ids):
-    """Returns dict trip_id -> (route_short_name, headsign), restricted to direction_id==1 (towards Brno)."""
+    """Returns dict trip_id -> (route_short_name, headsign, service_id), restricted to direction_id==1 (towards Brno)."""
     trips = {}
     with zf.open("trips.txt") as f:
         reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
         for row in reader:
             if row["route_id"] in route_ids and row.get("direction_id") == "1":
-                trips[row["trip_id"]] = (route_ids[row["route_id"]], row.get("trip_headsign", ""))
+                trips[row["trip_id"]] = (route_ids[row["route_id"]], row.get("trip_headsign", ""), row["service_id"])
     return trips
+
+
+def load_valid_service_ids(zf, service_date):
+    """Returns set of service_id valid on service_date, per calendar.txt + calendar_dates.txt exceptions."""
+    date_str = service_date.strftime("%Y%m%d")
+    weekday_cols = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    weekday_col = weekday_cols[service_date.weekday()]
+    valid = set()
+    with zf.open("calendar.txt") as f:
+        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
+        for row in reader:
+            if row["start_date"] <= date_str <= row["end_date"] and row[weekday_col] == "1":
+                valid.add(row["service_id"])
+    with zf.open("calendar_dates.txt") as f:
+        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
+        for row in reader:
+            if row["date"] != date_str:
+                continue
+            if row["exception_type"] == "1":
+                valid.add(row["service_id"])
+            elif row["exception_type"] == "2":
+                valid.discard(row["service_id"])
+    return valid
+
+
+def load_origin_departures(zf, trips, valid_service_ids):
+    """Returns dict route_name -> list of (trip_id, departure_time_str), for trips valid today,
+    departing from the Slavkov u Brna origin stop for that route."""
+    result = {name: [] for name in ROUTES_OF_INTEREST}
+    with zf.open("stop_times.txt") as f:
+        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
+        for row in reader:
+            trip_id = row["trip_id"]
+            if trip_id not in trips:
+                continue
+            route_name, _headsign, service_id = trips[trip_id]
+            if service_id not in valid_service_ids:
+                continue
+            if row["stop_id"] in ORIGIN_STOP_IDS[route_name]:
+                result[route_name].append((trip_id, row["departure_time"]))
+    return result
+
+
+def next_departure(origin_departures_for_route, now):
+    """Earliest (trip_id, departure_time_str, departure_dt) at/after now, or None if none remain today."""
+    now_seconds = now.hour * 3600 + now.minute * 60 + now.second
+    best = None
+    for trip_id, dep_str in origin_departures_for_route:
+        h, m, s = (int(x) for x in dep_str.split(":"))
+        dep_seconds = h * 3600 + m * 60 + s
+        if dep_seconds >= now_seconds and (best is None or dep_seconds < best[2]):
+            best = (trip_id, dep_str, dep_seconds)
+    if best is None:
+        return None
+    return best[0], best[1]
+
+
+def historical_average_delay(route_name):
+    """Mean delay_min for route_name across all prior logged rows, or (None, 0) if no data yet."""
+    if not os.path.exists(LOG_PATH):
+        return None, 0
+    total, count = 0.0, 0
+    with open(LOG_PATH, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row.get("route") != route_name:
+                continue
+            val = row.get("delay_min", "")
+            if val == "":
+                continue
+            try:
+                total += float(val)
+                count += 1
+            except ValueError:
+                continue
+    if count == 0:
+        return None, 0
+    return round(total / count, 1), count
 
 
 def load_stop_times_for_trips(zf, trip_ids):
@@ -148,6 +234,8 @@ def main():
         route_ids = load_route_ids(zf)
         trips = load_relevant_trips(zf, route_ids)
         stop_times = load_stop_times_for_trips(zf, set(trips.keys()))
+        valid_service_ids = load_valid_service_ids(zf, today)
+        origin_departures = load_origin_departures(zf, trips, valid_service_ids)
 
     rt_data = fetch(GTFS_RT_URL)
     feed = gtfs_realtime_pb2.FeedMessage()
@@ -163,7 +251,7 @@ def main():
         trip_id = v.trip.trip_id
         if trip_id not in trips:
             continue
-        route_name, headsign = trips[trip_id]
+        route_name, headsign, _service_id = trips[trip_id]
         stop_id = v.stop_id
         dedup_key = (route_name, stop_id)
         if dedup_key in seen_vehicle_ids:
@@ -210,6 +298,31 @@ def main():
         writer.writerow([ts, "CAR", "", "", "", "", "", car_min if car_min is not None else "", car_note])
         print(f"Logged {ts}: " + ", ".join(f"{r}={len(rows_by_route[r])} vehicle(s)" for r in ROUTES_OF_INTEREST.keys())
               + f", car={car_min} min" + (f" ({car_note})" if car_note else ""))
+
+    status = {
+        "generated_at": now.isoformat(),
+        "car": {"drive_min": car_min, "note": car_note},
+    }
+    for route_name in ROUTES_OF_INTEREST.keys():
+        nd = next_departure(origin_departures[route_name], now)
+        live_delay = None
+        if nd is not None:
+            nd_trip_id, nd_dep_str = nd
+            for e in rows_by_route[route_name]:
+                if e["trip_id"] == nd_trip_id:
+                    live_delay = e["delay_min"]
+                    break
+        avg_delay, sample_size = historical_average_delay(route_name)
+        status[route_name] = {
+            "next_departure": nd[1][:5] if nd else None,  # "HH:MM"
+            "live_delay_min": live_delay,
+            "historical_avg_delay_min": avg_delay,
+            "historical_sample_size": sample_size,
+        }
+
+    with open(STATUS_PATH, "w", encoding="utf-8") as f:
+        json.dump(status, f, ensure_ascii=False, indent=2)
+    print(f"Wrote {STATUS_PATH}")
 
 
 if __name__ == "__main__":
