@@ -315,6 +315,13 @@ def estimate_office_arrival(route_name, trip_id, stop_times, live_delay_min, his
     return eta_str, dest_sched_str
 
 
+def normalize_stop_id(stop_id):
+    """Strips zero-padding GTFS-RT adds to single-digit platform codes (e.g. "Z02" -> "Z2")
+    so it matches the static schedule's stop_ids. Leaves multi-digit codes (e.g. "Z10")
+    untouched, since there's no digit directly before the padding zero(s) in that case."""
+    return re.sub(r"(\D)0+(\d)$", r"\1\2", stop_id)
+
+
 def strip_html(text):
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -387,7 +394,10 @@ def main():
         if trip_id not in trips:
             continue
         route_name, headsign, _service_id = trips[trip_id]
-        stop_id = v.stop_id
+        # GTFS-RT zero-pads single-digit platform codes (e.g. "U16332Z02") while the static
+        # schedule doesn't ("U16332Z2"), so a literal match silently drops single-digit
+        # platforms entirely - strip that padding before looking the stop up.
+        stop_id = normalize_stop_id(v.stop_id)
         dedup_key = (route_name, stop_id)
         if dedup_key in seen_vehicle_ids:
             continue  # same physical train already logged this run (coupled multi-unit trains / calendar
