@@ -1,26 +1,31 @@
 {
-  "generated_at": "2026-10-01T14:49:19.370852+02:00",
+  "generated_at": "2026-10-01T15:19:49.960778+02:00",
   "car": {
-    "drive_min": 22.0,
+    "drive_min": 20.9,
     "note": "",
-    "eta": "15:11"
+    "eta": "15:41",
+    "departure_time": "15:15",
+    "historical_avg_min": 20.9,
+    "historical_sample_size": 1
   },
   "106": {
-    "next_departure": "14:52",
+    "next_departure": "15:52",
     "live_delay_min": null,
     "historical_avg_delay_min": null,
     "historical_sample_size": 0,
-    "dest_arrival_scheduled": "15:17",
+    "dest_arrival_scheduled": "16:17",
     "walk_min": 8,
-    "eta": "15:25"
+    "eta": "16:25",
+    "incident": null
   },
   "S6": {
-    "next_departure": "15:13",
-    "live_delay_min": 2.5,
-    "historical_avg_delay_min": 1.3,
-    "historical_sample_size": 12,
-    "dest_arrival_scheduled": "15:50",
+    "next_departure": "15:38",
+    "live_delay_min": null,
+    "historical_avg_delay_min": null,
+    "historical_sample_size": 0,
+    "dest_arrival_scheduled": null,
     "walk_min": 7,
-    "eta": "16:00"
+    "eta": null,
+    "incident": null
   }
 }
