@@ -12,11 +12,12 @@ Delay is estimated by comparing each vehicle's current timestamp against the
 scheduled time for its current/next stop in the static timetable.
 Car driving time is additionally fetched from the Mapy.com Routing REST API
 (https://api.mapy.com/v1/routing/route, routeType=car_fast_traffic), which returns
-a live-traffic-aware duration. The apikey query parameter below is a placeholder -
-it is transparently substituted by Claude's credential-injection proxy for the
-"Mapy.com routing API" credential configured on the cloud environment (the script
-itself never sees the real key). This call will simply fail (and be skipped) when
-run outside that environment, e.g. on a local machine without the proxy.
+a live-traffic-aware duration. The API key is read from the MAPY_API_KEY
+environment variable. (Claude's credential-injection proxy was tried first, but
+its "Body parameter" injection only supports JSON/form request bodies - this
+endpoint is a bodyless GET with the key in the query string, which the proxy
+can't handle, so a plain env var is used instead. The key is a free-tier,
+non-billable Mapy.com key scoped to this project only.)
 """
 import csv
 import datetime
@@ -47,11 +48,14 @@ MAPY_ROUTING_URL = "https://api.mapy.com/v1/routing/route"
 
 def get_car_drive_minutes():
     """Live-traffic driving time in minutes via Mapy.com, or (None, error note) on failure."""
+    api_key = os.environ.get("MAPY_API_KEY")
+    if not api_key:
+        return None, "MAPY_API_KEY environment variable not set"
     params = {
         "start": f"{ROUTE_START_LONLAT[0]},{ROUTE_START_LONLAT[1]}",
         "end": f"{ROUTE_END_LONLAT[0]},{ROUTE_END_LONLAT[1]}",
         "routeType": "car_fast_traffic",
-        "apikey": "injected-by-credential-proxy",
+        "apikey": api_key,
     }
     url = f"{MAPY_ROUTING_URL}?{urllib.parse.urlencode(params)}"
     try:
