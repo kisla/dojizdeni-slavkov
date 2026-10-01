@@ -293,14 +293,15 @@
       <table id="history-table">
         <thead>
           <tr>
-            <th>Čas</th>
+            <th>Čas měření</th>
             <th>Linka</th>
+            <th>Odjezd</th>
             <th class="num">Zpoždění</th>
             <th class="num">Auto</th>
           </tr>
         </thead>
         <tbody id="history-body">
-          <tr><td colspan="4" class="empty-state">Načítám…</td></tr>
+          <tr><td colspan="5" class="empty-state">Načítám…</td></tr>
         </tbody>
       </table>
     </div>
@@ -371,17 +372,20 @@
     const carEta = (car.drive_min !== null && car.drive_min !== undefined)
       ? fmtClock(new Date(Date.now() + car.drive_min * 60000))
       : "—";
-    const carSub = (car.drive_min !== null && car.drive_min !== undefined)
+    const carLive = (car.drive_min !== null && car.drive_min !== undefined)
       ? `${car.drive_min} min jízdy${car.note ? " · " + car.note : ""} (mapy.com)`
       : (car.note || "aktuální doprava (mapy.com)");
+    const carHist = (car.historical_avg_min !== null && car.historical_avg_min !== undefined)
+      ? `auto v ${car.departure_time} pojede obvykle ${car.historical_avg_min} min (z ${car.historical_sample_size} měření)`
+      : `zatím bez historie pro čas ${car.departure_time || "—"}`;
 
-    function transitCard(iconLabel, label, data) {
+    function transitCard(iconLabel, label, noun, data) {
       const eta = data.eta ? data.eta : "—";
       const next = data.next_departure ? data.next_departure : "dnes už nejede";
       const hist = (data.historical_avg_delay_min !== null && data.historical_avg_delay_min !== undefined)
-        ? `obvykle ${data.historical_avg_delay_min} min zpoždění (z ${data.historical_sample_size} měření)`
-        : "zatím bez historie";
-      const walkNote = data.walk_min ? ` · vč. ${data.walk_min} min chůze na místo` : "";
+        ? `${noun} v ${next} má obvykle ${data.historical_avg_delay_min} min zpoždění (z ${data.historical_sample_size} měření)`
+        : `zatím bez historie pro odjezd ${next}`;
+      const walkNote = data.walk_min ? `vč. ${data.walk_min} min chůze na místo` : "";
       return `
         <div class="card">
           <div class="mode-label"><span class="mode-icon">${iconLabel}</span>${label}</div>
@@ -389,7 +393,8 @@
           <div class="headline mono">${eta}</div>
           <div class="sub">odjezd <span class="mono">${next}</span></div>
           ${delayBadge(data.live_delay_min)}
-          <div class="sub">${hist}${walkNote}</div>
+          <div class="sub">${hist}</div>
+          <div class="sub">${walkNote}</div>
         </div>`;
     }
 
@@ -398,10 +403,11 @@
         <div class="mode-label"><span class="mode-icon">🚗</span>Auto</div>
         <div class="eta-label">dorazíte v</div>
         <div class="headline mono">${carEta}</div>
-        <div class="sub">${carSub}</div>
+        <div class="sub">${carLive}</div>
+        <div class="sub">${carHist}</div>
       </div>
-      ${transitCard("🚌", "Bus 106 → Brno", bus)}
-      ${transitCard("🚆", "Vlak S6 → Brno", train)}
+      ${transitCard("🚌", "Bus 106 → Brno", "bus", bus)}
+      ${transitCard("🚆", "Vlak S6 → Brno", "vlak", train)}
     `;
 
     document.getElementById("generated-at").textContent = status.generated_at ? fmtTime(status.generated_at) : "—";
@@ -434,7 +440,7 @@
     const relevant = rows.filter(r => r.route === "106" || r.route === "S6" || r.route === "CAR");
     const recent = relevant.slice(-30).reverse();
     if (recent.length === 0) {
-      document.getElementById("history-body").innerHTML = '<tr><td colspan="4" class="empty-state">Zatím žádná data.</td></tr>';
+      document.getElementById("history-body").innerHTML = '<tr><td colspan="5" class="empty-state">Zatím žádná data.</td></tr>';
       return;
     }
     const byTimestamp = {};
@@ -454,12 +460,13 @@
         html += `<tr>
           <td class="mono">${ts}</td>
           <td>${ROUTE_LABELS[route]}</td>
+          <td class="mono">${r.departure_time || "—"}</td>
           <td class="num mono">${delay !== null ? delay + " min" : (r.headsign === "NO_ACTIVE_VEHICLE" ? "—" : "?")}</td>
           <td class="num mono">${entry.car || "—"}</td>
         </tr>`;
       });
     });
-    document.getElementById("history-body").innerHTML = html || '<tr><td colspan="4" class="empty-state">Zatím žádná data.</td></tr>';
+    document.getElementById("history-body").innerHTML = html || '<tr><td colspan="5" class="empty-state">Zatím žádná data.</td></tr>';
   }
 
   async function loadAll() {

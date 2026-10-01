@@ -194,14 +194,17 @@ def next_departure(origin_departures_for_route, now):
     return best[0], best[1]
 
 
-def historical_average_delay(route_name):
-    """Mean delay_min for route_name across all prior logged rows, or (None, 0) if no data yet."""
-    if not os.path.exists(LOG_PATH):
+def historical_average_delay(route_name, departure_time):
+    """Mean delay_min for route_name at this specific scheduled departure_time ("HH:MM")
+    across all prior logged rows, or (None, 0) if no data yet. Keyed by departure time
+    (not just route) since different runs of the same line have very different typical
+    delays - e.g. the 7:06 train isn't representative of the 8:30 one."""
+    if not os.path.exists(LOG_PATH) or not departure_time:
         return None, 0
     total, count = 0.0, 0
     with open(LOG_PATH, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
-            if row.get("route") != route_name:
+            if row.get("route") != route_name or row.get("departure_time") != departure_time:
                 continue
             val = row.get("delay_min", "")
             if val == "":
@@ -214,6 +217,37 @@ def historical_average_delay(route_name):
     if count == 0:
         return None, 0
     return round(total / count, 1), count
+
+
+def historical_average_car(departure_slot):
+    """Mean car_drive_min for CAR rows logged at this rounded departure_slot ("HH:MM"),
+    or (None, 0) if no data yet."""
+    if not os.path.exists(LOG_PATH):
+        return None, 0
+    total, count = 0.0, 0
+    with open(LOG_PATH, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row.get("route") != "CAR" or row.get("departure_time") != departure_slot:
+                continue
+            val = row.get("car_drive_min", "")
+            if val == "":
+                continue
+            try:
+                total += float(val)
+                count += 1
+            except ValueError:
+                continue
+    if count == 0:
+        return None, 0
+    return round(total / count, 1), count
+
+
+def round_to_slot(now, slot_minutes=15):
+    """Rounds a time to the nearest slot_minutes boundary, as "HH:MM"."""
+    total = now.hour * 60 + now.minute
+    rounded = round(total / slot_minutes) * slot_minutes
+    rounded %= 24 * 60
+    return f"{rounded // 60:02d}:{rounded % 60:02d}"
 
 
 def load_stop_times_for_trips(zf, trip_ids):
@@ -274,6 +308,15 @@ def main():
         valid_service_ids = load_valid_service_ids(zf, today)
         origin_departures = load_origin_departures(zf, trips, valid_service_ids)
 
+    # trip_id -> its scheduled Slavkov departure time ("HH:MM"), for tagging every logged
+    # delay reading with the specific departure it belongs to (regardless of which stop the
+    # vehicle happened to be tracked at when the reading was taken).
+    trip_departure_time = {
+        trip_id: dep_str[:5]
+        for route_name in ROUTES_OF_INTEREST
+        for trip_id, dep_str in origin_departures[route_name]
+    }
+
     rt_data = fetch(GTFS_RT_URL)
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.ParseFromString(rt_data)
@@ -315,24 +358,27 @@ def main():
         })
 
     car_min, car_note = get_car_drive_minutes()
+    car_slot = round_to_slot(now)
 
     file_exists = os.path.exists(LOG_PATH)
     with open(LOG_PATH, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         if not file_exists:
             writer.writerow(["timestamp", "route", "trip_id", "headsign", "stop_id", "delay_min",
-                              "vehicle_label", "car_drive_min", "note"])
+                              "vehicle_label", "departure_time", "car_drive_min", "note"])
         ts = now.strftime("%Y-%m-%d %H:%M:%S")
         for route_name in ROUTES_OF_INTEREST.keys():
             entries = rows_by_route[route_name]
+            nd_for_log = next_departure(origin_departures[route_name], now)
             if not entries:
-                writer.writerow([ts, route_name, "", "NO_ACTIVE_VEHICLE", "", "", "", "", ""])
+                writer.writerow([ts, route_name, "", "NO_ACTIVE_VEHICLE", "", "", "",
+                                  nd_for_log[1][:5] if nd_for_log else "", "", ""])
                 continue
             # pick the vehicle closest to Brno-bound progress; just log all found (usually 1)
             for e in entries:
                 writer.writerow([ts, route_name, e["trip_id"], e["headsign"], e["stop_id"], e["delay_min"],
-                                  e["vehicle_label"], "", ""])
-        writer.writerow([ts, "CAR", "", "", "", "", "", car_min if car_min is not None else "", car_note])
+                                  e["vehicle_label"], trip_departure_time.get(e["trip_id"], ""), "", ""])
+        writer.writerow([ts, "CAR", "", "", "", "", "", car_slot, car_min if car_min is not None else "", car_note])
         print(f"Logged {ts}: " + ", ".join(f"{r}={len(rows_by_route[r])} vehicle(s)" for r in ROUTES_OF_INTEREST.keys())
               + f", car={car_min} min" + (f" ({car_note})" if car_note else ""))
 
@@ -340,10 +386,16 @@ def main():
     if car_min is not None:
         car_eta_minutes = round(now.hour * 60 + now.minute + now.second / 60 + car_min) % (24 * 60)
         car_eta = f"{car_eta_minutes // 60:02d}:{car_eta_minutes % 60:02d}"
+    car_hist_avg, car_hist_count = historical_average_car(car_slot)
 
     status = {
         "generated_at": now.isoformat(),
-        "car": {"drive_min": car_min, "note": car_note, "eta": car_eta},
+        "car": {
+            "drive_min": car_min, "note": car_note, "eta": car_eta,
+            "departure_time": car_slot,
+            "historical_avg_min": car_hist_avg,
+            "historical_sample_size": car_hist_count,
+        },
     }
     for route_name in ROUTES_OF_INTEREST.keys():
         nd = next_departure(origin_departures[route_name], now)
@@ -354,12 +406,13 @@ def main():
                 if e["trip_id"] == nd_trip_id:
                     live_delay = e["delay_min"]
                     break
-        avg_delay, sample_size = historical_average_delay(route_name)
+        nd_time = nd[1][:5] if nd else None
+        avg_delay, sample_size = historical_average_delay(route_name, nd_time)
         eta, dest_sched = (None, None)
         if nd is not None:
             eta, dest_sched = estimate_office_arrival(route_name, nd[0], stop_times, live_delay, avg_delay)
         status[route_name] = {
-            "next_departure": nd[1][:5] if nd else None,  # "HH:MM"
+            "next_departure": nd_time,  # "HH:MM"
             "live_delay_min": live_delay,
             "historical_avg_delay_min": avg_delay,
             "historical_sample_size": sample_size,
