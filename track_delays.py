@@ -27,6 +27,7 @@ import zipfile
 import io
 import urllib.request
 import urllib.parse
+import urllib.error
 
 from google.transit import gtfs_realtime_pb2
 
@@ -58,6 +59,9 @@ def get_car_drive_minutes():
         payload = json.loads(data)
         duration_s = payload["duration"]
         return round(duration_s / 60, 1), ""
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:500]
+        return None, f"mapy.com routing call failed: HTTP {exc.code} {exc.reason} | body={body!r}"
     except Exception as exc:
         return None, f"mapy.com routing call failed: {exc}"
 
