@@ -10,14 +10,23 @@ Data sources (official, CC BY 4.0 licensed open data from KORDIS JMK):
 Note: this feed does NOT include a delay field directly - only vehicle positions.
 Delay is estimated by comparing each vehicle's current timestamp against the
 scheduled time for its current/next stop in the static timetable.
+Car driving time is additionally fetched from the Mapy.com Routing REST API
+(https://api.mapy.com/v1/routing/route, routeType=car_fast_traffic), which returns
+a live-traffic-aware duration. The apikey query parameter below is a placeholder -
+it is transparently substituted by Claude's credential-injection proxy for the
+"Mapy.com routing API" credential configured on the cloud environment (the script
+itself never sees the real key). This call will simply fail (and be skipped) when
+run outside that environment, e.g. on a local machine without the proxy.
 """
 import csv
 import datetime
 from zoneinfo import ZoneInfo
+import json
 import os
 import zipfile
 import io
 import urllib.request
+import urllib.parse
 
 from google.transit import gtfs_realtime_pb2
 
@@ -28,6 +37,29 @@ CACHE_DIR = os.path.join(os.path.dirname(__file__), "gtfs_cache")
 STATIC_ZIP_PATH = os.path.join(CACHE_DIR, "gtfs.zip")
 LOG_PATH = os.path.join(os.path.dirname(__file__), "dojizdeni_log_rijen2026.csv")
 STATIC_MAX_AGE_HOURS = 20
+
+# Polni 332, Slavkov u Brna -> Vlnena/Digiteq Automotive, Prizova 7, Brno-stred
+ROUTE_START_LONLAT = (16.8779297, 49.1509648)
+ROUTE_END_LONLAT = (16.6168654, 49.1892194)
+MAPY_ROUTING_URL = "https://api.mapy.com/v1/routing/route"
+
+
+def get_car_drive_minutes():
+    """Live-traffic driving time in minutes via Mapy.com, or (None, error note) on failure."""
+    params = {
+        "start": f"{ROUTE_START_LONLAT[0]},{ROUTE_START_LONLAT[1]}",
+        "end": f"{ROUTE_END_LONLAT[0]},{ROUTE_END_LONLAT[1]}",
+        "routeType": "car_fast_traffic",
+        "apikey": "injected-by-credential-proxy",
+    }
+    url = f"{MAPY_ROUTING_URL}?{urllib.parse.urlencode(params)}"
+    try:
+        data = fetch(url)
+        payload = json.loads(data)
+        duration_s = payload["duration"]
+        return round(duration_s / 60, 1), ""
+    except Exception as exc:
+        return None, f"mapy.com routing call failed: {exc}"
 
 
 def fetch(url, dest_path=None):
@@ -149,24 +181,27 @@ def main():
             "vehicle_label": v.vehicle.label,
         })
 
+    car_min, car_note = get_car_drive_minutes()
+
     file_exists = os.path.exists(LOG_PATH)
     with open(LOG_PATH, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(["timestamp", "route", "trip_id", "headsign", "stop_id", "delay_min", "vehicle_label"])
+            writer.writerow(["timestamp", "route", "trip_id", "headsign", "stop_id", "delay_min",
+                              "vehicle_label", "car_drive_min", "note"])
         ts = now.strftime("%Y-%m-%d %H:%M:%S")
-        any_written = False
         for route_name in ROUTES_OF_INTEREST.keys():
             entries = rows_by_route[route_name]
             if not entries:
-                writer.writerow([ts, route_name, "", "NO_ACTIVE_VEHICLE", "", "", ""])
-                any_written = True
+                writer.writerow([ts, route_name, "", "NO_ACTIVE_VEHICLE", "", "", "", "", ""])
                 continue
             # pick the vehicle closest to Brno-bound progress; just log all found (usually 1)
             for e in entries:
-                writer.writerow([ts, route_name, e["trip_id"], e["headsign"], e["stop_id"], e["delay_min"], e["vehicle_label"]])
-                any_written = True
-        print(f"Logged {ts}: " + ", ".join(f"{r}={len(rows_by_route[r])} vehicle(s)" for r in ROUTES_OF_INTEREST.keys()))
+                writer.writerow([ts, route_name, e["trip_id"], e["headsign"], e["stop_id"], e["delay_min"],
+                                  e["vehicle_label"], "", ""])
+        writer.writerow([ts, "CAR", "", "", "", "", "", car_min if car_min is not None else "", car_note])
+        print(f"Logged {ts}: " + ", ".join(f"{r}={len(rows_by_route[r])} vehicle(s)" for r in ROUTES_OF_INTEREST.keys())
+              + f", car={car_min} min" + (f" ({car_note})" if car_note else ""))
 
 
 if __name__ == "__main__":

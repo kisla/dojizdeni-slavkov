@@ -1,4 +1,1 @@
-timestamp,route,trip_id,headsign,stop_id,delay_min,vehicle_label
-2026-10-01 09:11:09,106,,NO_ACTIVE_VEHICLE,,,
-2026-10-01 09:11:09,S6,1353,Hlavní nádraží,U16333Z10,-1.4,30042
-2026-10-01 09:11:09,S6,1377,Hlavní nádraží,U26802Z10,-2.8,30261
+timestamp,route,trip_id,headsign,stop_id,delay_min,vehicle_label,car_drive_min,note
