@@ -24,10 +24,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Inject trigger token and build site
         env:
-          MEASURE_TRIGGER_TOKEN: ${{ secrets.MEASURE_TRIGGER_TOKEN }}
+          GH_ACTIONS_PAT: ${{ secrets.GH_ACTIONS_PAT }}
         run: |
           mkdir -p dist
-          sed "s/__MEASURE_TRIGGER_TOKEN__/${MEASURE_TRIGGER_TOKEN}/" site_src/index.html > dist/index.html
+          sed "s/__GH_ACTIONS_PAT__/${GH_ACTIONS_PAT}/" site_src/index.html > dist/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

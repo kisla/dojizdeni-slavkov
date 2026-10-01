@@ -314,8 +314,8 @@
   const STATUS_URL = REPO_RAW + "/latest_status.json?t=" + Date.now();
   const CSV_URL = REPO_RAW + "/dojizdeni_log_rijen2026.csv?t=" + Date.now();
 
-  const TRIGGER_URL = "https://api.anthropic.com/v1/code/triggers/trig_01V9tWtY5Nbg4p1EL4UFFC3S/run";
-  const TRIGGER_TOKEN = "__MEASURE_TRIGGER_TOKEN__";
+  const TRIGGER_URL = "https://api.github.com/repos/kisla/dojizdeni-slavkov/actions/workflows/on-demand-measure.yml/dispatches";
+  const TRIGGER_TOKEN = "__GH_ACTIONS_PAT__";
 
   const ROUTE_LABELS = { "106": "Bus 106", "S6": "Vlak S6" };
 
@@ -461,9 +461,11 @@
         method: "POST",
         headers: {
           "Authorization": "Bearer " + TRIGGER_TOKEN,
+          "Accept": "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
           "Content-Type": "application/json",
         },
-        body: "{}",
+        body: JSON.stringify({ ref: "main" }),
       });
       if (!resp.ok) {
         throw new Error("HTTP " + resp.status);
