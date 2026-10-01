@@ -70,6 +70,14 @@ WALK_MINUTES_TO_OFFICE = {
     "S6": 7,    # Hlavni nadrazi -> Vlnena (~460 m)
 }
 
+# Realistic morning-commute departures from Slavkov u Brna worth tracking every weekday
+# (picked from the actual timetable so office arrival lands roughly 07:25-08:30):
+# bus 106 is ~25 min to UAN Zvonarka + 8 min walk, S6 is ~37 min to Hlavni nadrazi + 7 min walk.
+MONITORED_DEPARTURES = {
+    "106": ["06:52", "07:22", "07:52"],
+    "S6": ["06:43", "07:06", "07:43"],
+}
+
 # Public, unauthenticated endpoint behind idsjmk.cz's own "Aktualni informace" banner
 # (homepage -> MIMORADNE UDALOSTI). Found via the site's own JS bundle - no automation
 # restriction like mapa.idsjmk.cz's API has. Returns short operational notices (traffic
@@ -283,6 +291,14 @@ def load_stop_times_for_trips(zf, trip_ids):
 PRAGUE_TZ = ZoneInfo("Europe/Prague")
 
 
+def fmt_hhmm(time_str):
+    """GTFS times aren't reliably zero-padded ("6:52:00", not "06:52:00"), so a naive
+    [:5] slice silently mangles every single-digit hour (00-09) - exactly the morning
+    commute window this whole project cares about. Parse properly instead."""
+    h, m, _s = time_str.split(":")
+    return f"{int(h):02d}:{int(m):02d}"
+
+
 def gtfs_time_to_epoch(time_str, service_date):
     """GTFS times can exceed 24:00:00 for trips past midnight.
     GTFS schedule times are always local (Europe/Prague) wall-clock time, regardless
@@ -311,7 +327,7 @@ def estimate_office_arrival(route_name, trip_id, stop_times, live_delay_min, his
     total_minutes = round(sched_minutes + delay_min + walk_min)
     total_minutes %= 24 * 60
     eta_str = f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
-    dest_sched_str = dest_arrival_str[:5]
+    dest_sched_str = fmt_hhmm(dest_arrival_str)
     return eta_str, dest_sched_str
 
 
@@ -356,6 +372,38 @@ def get_incident_notes(now):
     return notes
 
 
+def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, stop_times, platform_codes):
+    """Assembles the full status block (live/historical delay, platform, ETA) for one
+    specific scheduled departure (trip_id may be None if that departure doesn't run today)."""
+    if trip_id is None:
+        avg_delay, sample_size = historical_average_delay(route_name, dep_time)
+        return {
+            "departure": dep_time,
+            "platform": None,
+            "live_delay_min": None,
+            "historical_avg_delay_min": avg_delay,
+            "historical_sample_size": sample_size,
+            "dest_arrival_scheduled": None,
+            "eta": None,
+        }
+    live_delay = None
+    for e in rows_by_route[route_name]:
+        if e["trip_id"] == trip_id:
+            live_delay = e["delay_min"]
+            break
+    avg_delay, sample_size = historical_average_delay(route_name, dep_time)
+    eta, dest_sched = estimate_office_arrival(route_name, trip_id, stop_times, live_delay, avg_delay)
+    return {
+        "departure": dep_time,
+        "platform": platform_codes.get(stop_id, "") or None,
+        "live_delay_min": live_delay,
+        "historical_avg_delay_min": avg_delay,
+        "historical_sample_size": sample_size,
+        "dest_arrival_scheduled": dest_sched,
+        "eta": eta,
+    }
+
+
 def main():
     now = datetime.datetime.now(PRAGUE_TZ)
     today = now.date()
@@ -374,7 +422,7 @@ def main():
     # delay reading with the specific departure it belongs to (regardless of which stop the
     # vehicle happened to be tracked at when the reading was taken).
     trip_departure_time = {
-        trip_id: dep_str[:5]
+        trip_id: fmt_hhmm(dep_str)
         for route_name in ROUTES_OF_INTEREST
         for trip_id, dep_str, _stop_id in origin_departures[route_name]
     }
@@ -438,7 +486,7 @@ def main():
             nd_for_log = next_departure(origin_departures[route_name], now)
             if not entries:
                 writer.writerow([ts, route_name, "", "NO_ACTIVE_VEHICLE", "", "", "",
-                                  nd_for_log[1][:5] if nd_for_log else "", "", ""])
+                                  fmt_hhmm(nd_for_log[1]) if nd_for_log else "", "", ""])
                 continue
             # pick the vehicle closest to Brno-bound progress; just log all found (usually 1)
             for e in entries:
@@ -465,30 +513,31 @@ def main():
     }
     for route_name in ROUTES_OF_INTEREST.keys():
         nd = next_departure(origin_departures[route_name], now)
-        live_delay = None
-        if nd is not None:
-            nd_trip_id, nd_dep_str, nd_stop_id = nd
-            for e in rows_by_route[route_name]:
-                if e["trip_id"] == nd_trip_id:
-                    live_delay = e["delay_min"]
-                    break
-        nd_time = nd[1][:5] if nd else None
-        platform = platform_codes.get(nd[2], "") if nd else None
-        avg_delay, sample_size = historical_average_delay(route_name, nd_time)
-        eta, dest_sched = (None, None)
-        if nd is not None:
-            eta, dest_sched = estimate_office_arrival(route_name, nd[0], stop_times, live_delay, avg_delay)
+        nd_info = build_departure_info(
+            route_name, nd[0] if nd else None, fmt_hhmm(nd[1]) if nd else None, nd[2] if nd else None,
+            rows_by_route, stop_times, platform_codes)
         status[route_name] = {
-            "next_departure": nd_time,  # "HH:MM"
-            "platform": platform or None,
-            "live_delay_min": live_delay,
-            "historical_avg_delay_min": avg_delay,
-            "historical_sample_size": sample_size,
-            "dest_arrival_scheduled": dest_sched,
+            "next_departure": nd_info["departure"],  # "HH:MM"
+            "platform": nd_info["platform"],
+            "live_delay_min": nd_info["live_delay_min"],
+            "historical_avg_delay_min": nd_info["historical_avg_delay_min"],
+            "historical_sample_size": nd_info["historical_sample_size"],
+            "dest_arrival_scheduled": nd_info["dest_arrival_scheduled"],
             "walk_min": WALK_MINUTES_TO_OFFICE[route_name],
-            "eta": eta,
+            "eta": nd_info["eta"],
             "incident": incident_notes[route_name],
         }
+
+        # Realistic morning departures, tracked every weekday regardless of which one is
+        # "next" right now, so each builds up its own delay history over the month.
+        by_time = {fmt_hhmm(dep_str): (trip_id, stop_id) for trip_id, dep_str, stop_id in origin_departures[route_name]}
+        watch_list = []
+        for dep_time in MONITORED_DEPARTURES[route_name]:
+            match = by_time.get(dep_time)
+            trip_id, stop_id = match if match else (None, None)
+            watch_list.append(build_departure_info(
+                route_name, trip_id, dep_time, stop_id, rows_by_route, stop_times, platform_codes))
+        status.setdefault("morning_watch", {})[route_name] = watch_list
 
     with open(STATUS_PATH, "w", encoding="utf-8") as f:
         json.dump(status, f, ensure_ascii=False, indent=2)

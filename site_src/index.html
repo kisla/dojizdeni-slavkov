@@ -296,6 +296,26 @@
   </div>
 
   <section class="history">
+    <h2>Sledované ranní spoje</h2>
+    <div class="table-scroll">
+      <table id="watch-table">
+        <thead>
+          <tr>
+            <th>Linka</th>
+            <th>Odjezd</th>
+            <th>Nástupiště</th>
+            <th class="num">Zpoždění</th>
+            <th class="num">Dorazíte</th>
+          </tr>
+        </thead>
+        <tbody id="watch-body">
+          <tr><td colspan="5" class="empty-state">Načítám…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="history">
     <h2>Historie měření</h2>
     <div class="table-scroll">
       <table id="history-table">
@@ -424,6 +444,34 @@
     `;
 
     document.getElementById("generated-at").textContent = status.generated_at ? fmtTime(status.generated_at) : "—";
+    renderWatchTable(status.morning_watch || {});
+  }
+
+  function renderWatchTable(morningWatch) {
+    const rows = [];
+    for (const [route, label] of [["106", "Bus 106"], ["S6", "Vlak S6"]]) {
+      for (const d of morningWatch[route] || []) {
+        rows.push({ route, label, ...d });
+      }
+    }
+    if (rows.length === 0) {
+      document.getElementById("watch-body").innerHTML = '<tr><td colspan="5" class="empty-state">Zatím žádná data.</td></tr>';
+      return;
+    }
+    document.getElementById("watch-body").innerHTML = rows.map(r => {
+      const delay = (r.live_delay_min !== null && r.live_delay_min !== undefined)
+        ? delayBadge(r.live_delay_min)
+        : (r.historical_avg_delay_min !== null && r.historical_avg_delay_min !== undefined)
+          ? `<span class="badge neutral"><span class="dot"></span>obvykle ${r.historical_avg_delay_min} min (z ${r.historical_sample_size})</span>`
+          : '<span class="badge neutral"><span class="dot"></span>bez dat</span>';
+      return `<tr>
+        <td>${r.label}</td>
+        <td class="mono">${r.departure}</td>
+        <td class="mono">${r.platform || "—"}</td>
+        <td class="num">${delay}</td>
+        <td class="num mono">${r.eta || "—"}</td>
+      </tr>`;
+    }).join("");
   }
 
   function parseCsv(text) {
