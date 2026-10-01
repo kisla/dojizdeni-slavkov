@@ -2,3 +2,6 @@ timestamp,route,trip_id,headsign,stop_id,delay_min,vehicle_label,car_drive_min,n
 2026-10-01 09:28:46,106,,NO_ACTIVE_VEHICLE,,,,,
 2026-10-01 09:28:46,S6,1353,Hlavní nádraží,U16137Z10,-1.3,30042,,
 2026-10-01 09:28:46,CAR,,,,,,,mapy.com routing call failed: HTTP Error 502: Bad Gateway
+2026-10-01 12:44:51,106,,NO_ACTIVE_VEHICLE,,,,,
+2026-10-01 12:44:51,S6,1362,Hlavní nádraží,U16604Z10,14.3,30115,,
+2026-10-01 12:44:51,CAR,,,,,,,mapy.com routing call failed: HTTP Error 502: Bad Gateway
