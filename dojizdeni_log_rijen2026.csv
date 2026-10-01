@@ -1,7 +1,1 @@
 timestamp,route,trip_id,headsign,stop_id,delay_min,vehicle_label
-2026-10-01 08:41:34,106,,NO_ACTIVE_VEHICLE,,,
-2026-10-01 08:41:34,S6,1353,Hlavní nádraží,U16628Z10,-5.2,30042
-2026-10-01 08:41:34,S6,1445,"Veselí nad Moravou, železniční stanice",U19316Z12,6.7,30478
-2026-10-01 07:02:19,106,,NO_ACTIVE_VEHICLE,,,
-2026-10-01 07:02:19,S6,1353,Hlavní nádraží,U16406Z10,-122.4,30042
-2026-10-01 07:02:19,S6,1377,Hlavní nádraží,U16908Z10,-127.2,30261

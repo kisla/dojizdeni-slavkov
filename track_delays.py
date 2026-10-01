@@ -13,6 +13,7 @@ scheduled time for its current/next stop in the static timetable.
 """
 import csv
 import datetime
+from zoneinfo import ZoneInfo
 import os
 import zipfile
 import io
@@ -85,15 +86,21 @@ def load_stop_times_for_trips(zf, trip_ids):
     return result
 
 
+PRAGUE_TZ = ZoneInfo("Europe/Prague")
+
+
 def gtfs_time_to_epoch(time_str, service_date):
-    """GTFS times can exceed 24:00:00 for trips past midnight."""
+    """GTFS times can exceed 24:00:00 for trips past midnight.
+    GTFS schedule times are always local (Europe/Prague) wall-clock time, regardless
+    of the host machine's system timezone (the cloud runner uses UTC), so the base
+    datetime must be explicitly tz-aware to compute the correct UTC epoch."""
     h, m, s = (int(x) for x in time_str.split(":"))
-    base = datetime.datetime.combine(service_date, datetime.time(0, 0, 0))
+    base = datetime.datetime.combine(service_date, datetime.time(0, 0, 0), tzinfo=PRAGUE_TZ)
     return (base + datetime.timedelta(hours=h, minutes=m, seconds=s)).timestamp()
 
 
 def main():
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(PRAGUE_TZ)
     today = now.date()
 
     static_path = ensure_static_gtfs()
