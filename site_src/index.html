@@ -169,6 +169,11 @@
     gap: 0.4rem;
   }
   .card .mode-icon { font-size: 0.95rem; }
+  .card .eta-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin: -0.3rem 0 -0.2rem;
+  }
   .card .headline {
     font-size: 2.1rem;
     font-weight: 700;
@@ -311,8 +316,8 @@
 
 <script>
   const REPO_RAW = "https://raw.githubusercontent.com/kisla/dojizdeni-slavkov/main";
-  const STATUS_URL = REPO_RAW + "/latest_status.json?t=" + Date.now();
-  const CSV_URL = REPO_RAW + "/dojizdeni_log_rijen2026.csv?t=" + Date.now();
+  const statusUrl = () => REPO_RAW + "/latest_status.json?t=" + Date.now();
+  const csvUrl = () => REPO_RAW + "/dojizdeni_log_rijen2026.csv?t=" + Date.now();
 
   const TRIGGER_URL = "https://api.github.com/repos/kisla/dojizdeni-slavkov/actions/workflows/on-demand-measure.yml/dispatches";
   const TRIGGER_TOKEN = "__GH_ACTIONS_PAT__";
@@ -338,34 +343,47 @@
     return `<span class="badge ${cls}"><span class="dot"></span>${label}</span>`;
   }
 
+  function fmtClock(d) {
+    return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+  }
+
   function renderCards(status) {
     const car = status.car || {};
     const bus = status["106"] || {};
     const train = status["S6"] || {};
 
-    const carHeadline = (car.drive_min !== null && car.drive_min !== undefined)
-      ? `${car.drive_min}<span class="unit">min</span>`
-      : `—`;
-    const carSub = car.note ? car.note : "aktuální doprava (mapy.com)";
+    // Car ETA is computed client-side from "now" so it stays accurate between refreshes,
+    // not from when the measurement was taken.
+    const carEta = (car.drive_min !== null && car.drive_min !== undefined)
+      ? fmtClock(new Date(Date.now() + car.drive_min * 60000))
+      : "—";
+    const carSub = (car.drive_min !== null && car.drive_min !== undefined)
+      ? `${car.drive_min} min jízdy${car.note ? " · " + car.note : ""} (mapy.com)`
+      : (car.note || "aktuální doprava (mapy.com)");
 
     function transitCard(iconLabel, label, data) {
+      const eta = data.eta ? data.eta : "—";
       const next = data.next_departure ? data.next_departure : "dnes už nejede";
       const hist = (data.historical_avg_delay_min !== null && data.historical_avg_delay_min !== undefined)
         ? `obvykle ${data.historical_avg_delay_min} min zpoždění (z ${data.historical_sample_size} měření)`
         : "zatím bez historie";
+      const walkNote = data.walk_min ? ` · vč. ${data.walk_min} min chůze na místo` : "";
       return `
         <div class="card">
           <div class="mode-label"><span class="mode-icon">${iconLabel}</span>${label}</div>
-          <div class="headline mono">${next}</div>
+          <div class="eta-label">dorazíte v</div>
+          <div class="headline mono">${eta}</div>
+          <div class="sub">odjezd <span class="mono">${next}</span></div>
           ${delayBadge(data.live_delay_min)}
-          <div class="sub">${hist}</div>
+          <div class="sub">${hist}${walkNote}</div>
         </div>`;
     }
 
     document.getElementById("cards").innerHTML = `
       <div class="card">
         <div class="mode-label"><span class="mode-icon">🚗</span>Auto</div>
-        <div class="headline mono">${carHeadline}</div>
+        <div class="eta-label">dorazíte v</div>
+        <div class="headline mono">${carEta}</div>
         <div class="sub">${carSub}</div>
       </div>
       ${transitCard("🚌", "Bus 106 → Brno", bus)}
@@ -432,7 +450,7 @@
 
   async function loadAll() {
     try {
-      const statusResp = await fetch(STATUS_URL, { cache: "no-store" });
+      const statusResp = await fetch(statusUrl(), { cache: "no-store" });
       if (statusResp.ok) {
         renderCards(await statusResp.json());
       }
@@ -440,7 +458,7 @@
       document.getElementById("cards").innerHTML = '<div class="empty-state">Nepodařilo se načíst data.</div>';
     }
     try {
-      const csvResp = await fetch(CSV_URL, { cache: "no-store" });
+      const csvResp = await fetch(csvUrl(), { cache: "no-store" });
       if (csvResp.ok) {
         renderHistory(parseCsv(await csvResp.text()));
       }

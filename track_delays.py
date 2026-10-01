@@ -54,6 +54,21 @@ ROUTE_START_LONLAT = (16.8779297, 49.1509648)
 ROUTE_END_LONLAT = (16.6168654, 49.1892194)
 MAPY_ROUTING_URL = "https://api.mapy.com/v1/routing/route"
 
+# Terminus stop for each route's Brno-bound trips (last stop_id in the trip), used to
+# estimate "arrival at destination" time. Looked up once from stop_times.txt/stops.txt:
+# bus 106 -> UAN Zvonarka, train S6 -> Hlavni nadrazi.
+DEST_STOP_IDS = {
+    "106": "U1696Z6",   # UAN Zvonarka
+    "S6": "U1146Z99",   # Hlavni nadrazi
+}
+# Walking time from each terminus to Vlnena (Prizova 7), estimated from straight-line
+# distance with a 1.3x street-detour factor at ~80 m/min walking pace, rounded up for
+# street crossings. Not live data - these distances/routes don't meaningfully change.
+WALK_MINUTES_TO_OFFICE = {
+    "106": 8,   # UAN Zvonarka -> Vlnena (~560 m)
+    "S6": 7,    # Hlavni nadrazi -> Vlnena (~460 m)
+}
+
 
 def get_car_drive_minutes():
     """Live-traffic driving time in minutes via Mapy.com, or (None, error note) on failure."""
@@ -225,6 +240,28 @@ def gtfs_time_to_epoch(time_str, service_date):
     return (base + datetime.timedelta(hours=h, minutes=m, seconds=s)).timestamp()
 
 
+def estimate_office_arrival(route_name, trip_id, stop_times, live_delay_min, historical_avg_delay_min):
+    """Estimated arrival time at Vlnena ("HH:MM"), plus the scheduled (no-delay) destination
+    arrival ("HH:MM"), for the given trip. Delay estimate prefers live data, falls back to the
+    historical average, falls back to 0 (on-time) if neither is available yet."""
+    dest_stop_id = DEST_STOP_IDS[route_name]
+    key = (trip_id, dest_stop_id)
+    if key not in stop_times:
+        return None, None
+    dest_arrival_str, _ = stop_times[key]
+    h, m, s = (int(x) for x in dest_arrival_str.split(":"))
+    sched_minutes = h * 60 + m + s / 60
+
+    delay_min = live_delay_min if live_delay_min is not None else (
+        historical_avg_delay_min if historical_avg_delay_min is not None else 0)
+    walk_min = WALK_MINUTES_TO_OFFICE[route_name]
+    total_minutes = round(sched_minutes + delay_min + walk_min)
+    total_minutes %= 24 * 60
+    eta_str = f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
+    dest_sched_str = dest_arrival_str[:5]
+    return eta_str, dest_sched_str
+
+
 def main():
     now = datetime.datetime.now(PRAGUE_TZ)
     today = now.date()
@@ -299,9 +336,14 @@ def main():
         print(f"Logged {ts}: " + ", ".join(f"{r}={len(rows_by_route[r])} vehicle(s)" for r in ROUTES_OF_INTEREST.keys())
               + f", car={car_min} min" + (f" ({car_note})" if car_note else ""))
 
+    car_eta = None
+    if car_min is not None:
+        car_eta_minutes = round(now.hour * 60 + now.minute + now.second / 60 + car_min) % (24 * 60)
+        car_eta = f"{car_eta_minutes // 60:02d}:{car_eta_minutes % 60:02d}"
+
     status = {
         "generated_at": now.isoformat(),
-        "car": {"drive_min": car_min, "note": car_note},
+        "car": {"drive_min": car_min, "note": car_note, "eta": car_eta},
     }
     for route_name in ROUTES_OF_INTEREST.keys():
         nd = next_departure(origin_departures[route_name], now)
@@ -313,11 +355,17 @@ def main():
                     live_delay = e["delay_min"]
                     break
         avg_delay, sample_size = historical_average_delay(route_name)
+        eta, dest_sched = (None, None)
+        if nd is not None:
+            eta, dest_sched = estimate_office_arrival(route_name, nd[0], stop_times, live_delay, avg_delay)
         status[route_name] = {
             "next_departure": nd[1][:5] if nd else None,  # "HH:MM"
             "live_delay_min": live_delay,
             "historical_avg_delay_min": avg_delay,
             "historical_sample_size": sample_size,
+            "dest_arrival_scheduled": dest_sched,
+            "walk_min": WALK_MINUTES_TO_OFFICE[route_name],
+            "eta": eta,
         }
 
     with open(STATUS_PATH, "w", encoding="utf-8") as f:
