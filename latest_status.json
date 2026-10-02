@@ -1,23 +1,25 @@
 {
-  "generated_at": "2026-10-02T08:27:20.980851+02:00",
+  "generated_at": "2026-10-02T08:50:55.037996+02:00",
   "car": {
-    "drive_min": 20.8,
+    "drive_min": 19.8,
     "note": "",
-    "eta": "08:48",
-    "departure_time": "08:30",
-    "historical_avg_min": 20.8,
+    "eta": "09:11",
+    "departure_time": "08:45",
+    "historical_avg_min": 19.8,
     "historical_sample_size": 1
   },
   "106": {
     "next_departure": "08:52",
     "platform": "2",
-    "live_delay_min": -5.0,
-    "historical_avg_delay_min": -6.2,
-    "historical_sample_size": 2,
+    "live_delay_min": -1.1,
+    "historical_avg_delay_min": -4.5,
+    "historical_sample_size": 3,
     "dest_arrival_scheduled": "09:17",
     "walk_min": 8,
-    "eta": "09:20",
-    "incident": null
+    "eta": "09:24",
+    "incident": null,
+    "slavkov_time": "08:51",
+    "brno_time": "09:16"
   },
   "morning_watch": {
     "106": [
@@ -28,7 +30,9 @@
         "historical_avg_delay_min": -1.7,
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "07:17",
-        "eta": "07:23"
+        "eta": "07:23",
+        "slavkov_time": null,
+        "brno_time": null
       },
       {
         "departure": "07:22",
@@ -37,7 +41,9 @@
         "historical_avg_delay_min": -1.7,
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "07:47",
-        "eta": "07:53"
+        "eta": "07:53",
+        "slavkov_time": null,
+        "brno_time": null
       },
       {
         "departure": "07:52",
@@ -46,7 +52,9 @@
         "historical_avg_delay_min": 2.6,
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "08:17",
-        "eta": "08:28"
+        "eta": "08:28",
+        "slavkov_time": null,
+        "brno_time": null
       }
     ],
     "S6": [
@@ -57,7 +65,9 @@
         "historical_avg_delay_min": -2.7,
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "07:20",
-        "eta": "07:24"
+        "eta": "07:24",
+        "slavkov_time": null,
+        "brno_time": null
       },
       {
         "departure": "07:06",
@@ -66,7 +76,9 @@
         "historical_avg_delay_min": null,
         "historical_sample_size": 0,
         "dest_arrival_scheduled": "07:33",
-        "eta": "07:40"
+        "eta": "07:40",
+        "slavkov_time": null,
+        "brno_time": null
       },
       {
         "departure": "07:43",
@@ -75,7 +87,9 @@
         "historical_avg_delay_min": -1.6,
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "08:20",
-        "eta": "08:25"
+        "eta": "08:25",
+        "slavkov_time": null,
+        "brno_time": null
       }
     ]
   },
@@ -88,6 +102,8 @@
     "dest_arrival_scheduled": "09:48",
     "walk_min": 7,
     "eta": "09:55",
-    "incident": null
+    "incident": null,
+    "slavkov_time": null,
+    "brno_time": null
   }
 }
