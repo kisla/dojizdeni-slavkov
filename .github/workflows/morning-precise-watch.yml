@@ -24,6 +24,7 @@ jobs:
       - name: Run precise morning watch
         env:
           MAPY_API_KEY: ${{ secrets.MAPY_API_KEY }}
+          PYTHONUNBUFFERED: "1"
         run: python3 precise_morning_watch.py
       - name: Commit and push results
         run: |
