@@ -1,26 +1,26 @@
 {
-  "generated_at": "2026-10-02T16:26:46.948447+02:00",
+  "generated_at": "2026-10-02T16:28:58.053339+02:00",
   "car": {
     "drive_min": 19.9,
     "note": "",
-    "eta": "16:47",
+    "eta": "16:49",
     "departure_time": "16:30",
     "historical_avg_min": 19.9,
-    "historical_sample_size": 1
+    "historical_sample_size": 2
   },
   "106": {
     "next_departure": "16:52",
     "platform": "2",
-    "live_delay_min": -5.2,
-    "historical_avg_delay_min": -5.2,
-    "historical_sample_size": 1,
+    "live_delay_min": -3.4,
+    "historical_avg_delay_min": -4.3,
+    "historical_sample_size": 2,
     "dest_arrival_scheduled": "17:17",
     "walk_min": 8,
-    "eta": "17:20",
+    "eta": "17:22",
     "eta_note": null,
     "incident": null,
-    "slavkov_time": "16:47",
-    "brno_time": "17:12"
+    "slavkov_time": "16:49",
+    "brno_time": "17:14"
   },
   "morning_watch": {
     "106": [
