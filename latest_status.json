@@ -1,28 +1,26 @@
 {
-  "generated_at": "2026-10-02T14:36:57.460601+02:00",
+  "generated_at": "2026-10-02T14:45:54.018271+02:00",
   "car": {
-    "drive_min": 23.6,
+    "drive_min": 22.7,
     "note": "",
-    "eta": "15:01",
-    "departure_time": "14:30",
-    "historical_avg_min": 23.6,
-    "historical_sample_size": 1
+    "eta": "15:09",
+    "departure_time": "14:45",
+    "historical_avg_min": 21.4,
+    "historical_sample_size": 4
   },
   "106": {
     "next_departure": "14:52",
     "platform": "2",
-    "live_delay_min": -2.5,
-    "historical_avg_delay_min": -2.5,
-    "historical_sample_size": 1,
+    "live_delay_min": -0.3,
+    "historical_avg_delay_min": -1.4,
+    "historical_sample_size": 2,
     "dest_arrival_scheduled": "15:17",
     "walk_min": 8,
-    "eta": "15:22",
-    "incident": {
-      "text": "Dopravní komplikace na D1 a silný provoz na okolních komunikacích (převážně u Brna), počítejte se zdržením spojů cca 5 až 15min (ojediněle i více) u linek 106, 107, 601, 602, 701, 702 a i na lince 151. Děkujeme za pochopení.",
-      "time": "2026-10-02T14:07:41.634618+02:00"
-    },
-    "slavkov_time": "14:50",
-    "brno_time": "15:14"
+    "eta": "15:25",
+    "eta_note": null,
+    "incident": null,
+    "slavkov_time": "14:52",
+    "brno_time": "15:17"
   },
   "morning_watch": {
     "106": [
@@ -34,6 +32,7 @@
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "07:17",
         "eta": "07:23",
+        "eta_note": null,
         "slavkov_time": null,
         "brno_time": null
       },
@@ -45,6 +44,7 @@
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "07:47",
         "eta": "07:53",
+        "eta_note": null,
         "slavkov_time": null,
         "brno_time": null
       },
@@ -56,6 +56,7 @@
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "08:17",
         "eta": "08:28",
+        "eta_note": null,
         "slavkov_time": null,
         "brno_time": null
       }
@@ -69,6 +70,7 @@
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "07:20",
         "eta": "07:24",
+        "eta_note": null,
         "slavkov_time": null,
         "brno_time": null
       },
@@ -80,6 +82,7 @@
         "historical_sample_size": 0,
         "dest_arrival_scheduled": "07:33",
         "eta": "07:40",
+        "eta_note": null,
         "slavkov_time": null,
         "brno_time": null
       },
@@ -91,20 +94,22 @@
         "historical_sample_size": 1,
         "dest_arrival_scheduled": "08:20",
         "eta": "08:25",
+        "eta_note": null,
         "slavkov_time": null,
         "brno_time": null
       }
     ]
   },
   "S6": {
-    "next_departure": "14:40",
+    "next_departure": "15:13",
     "platform": null,
     "live_delay_min": null,
-    "historical_avg_delay_min": -0.9,
-    "historical_sample_size": 1,
-    "dest_arrival_scheduled": null,
+    "historical_avg_delay_min": -0.5,
+    "historical_sample_size": 3,
+    "dest_arrival_scheduled": "15:50",
     "walk_min": 7,
-    "eta": null,
+    "eta": "15:56",
+    "eta_note": null,
     "incident": null,
     "slavkov_time": null,
     "brno_time": null
