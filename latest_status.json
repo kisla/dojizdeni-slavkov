@@ -1,33 +1,93 @@
 {
-  "generated_at": "2026-10-01T17:57:54.975419+02:00",
+  "generated_at": "2026-10-02T07:52:07.145193+02:00",
   "car": {
-    "drive_min": 19.7,
+    "drive_min": 20.4,
     "note": "",
-    "eta": "18:18",
-    "departure_time": "18:00",
-    "historical_avg_min": 19.8,
-    "historical_sample_size": 2
+    "eta": "08:13",
+    "departure_time": "07:45",
+    "historical_avg_min": 20.4,
+    "historical_sample_size": 1
   },
   "106": {
-    "next_departure": "18:52",
+    "next_departure": "08:52",
     "platform": "2",
-    "live_delay_min": null,
-    "historical_avg_delay_min": null,
-    "historical_sample_size": 0,
-    "dest_arrival_scheduled": "19:17",
+    "live_delay_min": -7.3,
+    "historical_avg_delay_min": -7.3,
+    "historical_sample_size": 1,
+    "dest_arrival_scheduled": "09:17",
     "walk_min": 8,
-    "eta": "19:25",
+    "eta": "09:18",
     "incident": null
   },
+  "morning_watch": {
+    "106": [
+      {
+        "departure": "06:52",
+        "platform": "2",
+        "live_delay_min": null,
+        "historical_avg_delay_min": null,
+        "historical_sample_size": 0,
+        "dest_arrival_scheduled": "07:17",
+        "eta": "07:25"
+      },
+      {
+        "departure": "07:22",
+        "platform": "2",
+        "live_delay_min": null,
+        "historical_avg_delay_min": null,
+        "historical_sample_size": 0,
+        "dest_arrival_scheduled": "07:47",
+        "eta": "07:55"
+      },
+      {
+        "departure": "07:52",
+        "platform": "2",
+        "live_delay_min": 2.6,
+        "historical_avg_delay_min": 2.6,
+        "historical_sample_size": 1,
+        "dest_arrival_scheduled": "08:17",
+        "eta": "08:28"
+      }
+    ],
+    "S6": [
+      {
+        "departure": "06:43",
+        "platform": null,
+        "live_delay_min": null,
+        "historical_avg_delay_min": null,
+        "historical_sample_size": 0,
+        "dest_arrival_scheduled": "07:20",
+        "eta": "07:27"
+      },
+      {
+        "departure": "07:06",
+        "platform": null,
+        "live_delay_min": null,
+        "historical_avg_delay_min": null,
+        "historical_sample_size": 0,
+        "dest_arrival_scheduled": "07:33",
+        "eta": "07:40"
+      },
+      {
+        "departure": "07:43",
+        "platform": null,
+        "live_delay_min": null,
+        "historical_avg_delay_min": null,
+        "historical_sample_size": 0,
+        "dest_arrival_scheduled": "08:20",
+        "eta": "08:27"
+      }
+    ]
+  },
   "S6": {
-    "next_departure": "18:08",
+    "next_departure": "08:08",
     "platform": null,
     "live_delay_min": null,
     "historical_avg_delay_min": null,
     "historical_sample_size": 0,
-    "dest_arrival_scheduled": "18:33",
+    "dest_arrival_scheduled": "08:33",
     "walk_min": 7,
-    "eta": "18:40",
+    "eta": "08:40",
     "incident": null
   }
 }
