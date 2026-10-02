@@ -47,5 +47,4 @@ timestamp,route,trip_id,headsign,stop_id,delay_min,vehicle_label,departure_time,
 2026-10-02 06:34:39,CAR,,,,,,06:30,,mapy.com routing call failed: <urlopen error [Errno 104] Connection reset by peer>
 2026-10-02 07:52:07,106,400,ÚAN Zvonařka,U16612Z2,-7.3,21385,08:52,,
 2026-10-02 07:52:07,106,126,ÚAN Zvonařka,U16332Z2,2.6,21081,07:52,,
-2026-10-02 07:52:07,S6,1421,Hlavní nádraží,U26501Z1,206.7,30141,04:43,,
 2026-10-02 07:52:07,CAR,,,,,,07:45,20.4,

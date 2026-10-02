@@ -41,6 +41,13 @@ STATIC_ZIP_PATH = os.path.join(CACHE_DIR, "gtfs.zip")
 LOG_PATH = os.path.join(os.path.dirname(__file__), "dojizdeni_log_rijen2026.csv")
 STATUS_PATH = os.path.join(os.path.dirname(__file__), "latest_status.json")
 STATIC_MAX_AGE_HOURS = 20
+STALE_VEHICLE_MAX_AGE_MINUTES = 20
+# KORDIS's AVL system occasionally leaves a vehicle tagged with a trip_id it already
+# finished (or hasn't started), while its GPS position/timestamp is genuinely live - this
+# produces wildly implausible delays (observed: +206.7, -528.9 min) that are a feed
+# misassignment artifact, not a real delay. A regional line running an hour+ off schedule
+# would be newsworthy; treat readings beyond this as noise rather than record them.
+MAX_PLAUSIBLE_DELAY_MINUTES = 60
 
 # Platform stop_ids at the Slavkov u Brna origin stops (grouped by parent_station in stops.txt):
 # bus station (parent U16328N107) and train station (parent U16333N246).
@@ -460,7 +467,16 @@ def main():
         except Exception:
             continue
         actual_epoch = v.timestamp
+        # GTFS-RT feeds sometimes leave a vehicle's last-known position in the feed after
+        # it's actually finished its run (lost GPS signal, end of trip, etc.) instead of
+        # removing the entity. A position report that's too old to be "live" would produce
+        # a huge bogus delay (observed: 206.7 min on a trip scheduled ~3.5h earlier) - skip it.
+        report_age_min = (now.timestamp() - actual_epoch) / 60
+        if report_age_min > STALE_VEHICLE_MAX_AGE_MINUTES:
+            continue
         delay_min = round((actual_epoch - sched_epoch) / 60, 1)
+        if abs(delay_min) > MAX_PLAUSIBLE_DELAY_MINUTES:
+            continue
         seen_vehicle_ids.add(dedup_key)
         rows_by_route[route_name].append({
             "trip_id": trip_id,
