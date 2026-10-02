@@ -410,8 +410,10 @@
       : `zatím bez historie pro čas ${car.departure_time || "—"}`;
 
     function transitCard(iconLabel, label, noun, data) {
-      const eta = data.eta ? data.eta : "—";
       const next = data.next_departure ? data.next_departure : "dnes už nejede";
+      const etaLine = data.eta
+        ? `dorazíte v <span class="mono">${data.eta}</span>`
+        : (data.eta_note || "čas příjezdu neznámý");
       const hist = (data.historical_avg_delay_min !== null && data.historical_avg_delay_min !== undefined)
         ? `${noun} v ${next} má obvykle ${data.historical_avg_delay_min} min zpoždění (z ${data.historical_sample_size} měření)`
         : `zatím bez historie pro odjezd ${next}`;
@@ -425,7 +427,7 @@
           <div class="mode-label"><span class="mode-icon">${iconLabel}</span>${label}</div>
           <div class="eta-label">odjezd</div>
           <div class="headline mono">${next}</div>
-          <div class="sub">dorazíte v <span class="mono">${eta}</span>${platformNote}</div>
+          <div class="sub">${etaLine}${platformNote}</div>
           ${delayBadge(data.live_delay_min)}
           <div class="sub">${hist}</div>
           <div class="sub">${walkNote}</div>

@@ -323,14 +323,19 @@ def gtfs_time_to_epoch(time_str, service_date):
     return (base + datetime.timedelta(hours=h, minutes=m, seconds=s)).timestamp()
 
 
-def estimate_office_arrival(route_name, trip_id, stop_times, live_delay_min, historical_avg_delay_min):
-    """Estimated arrival time at Vlnena ("HH:MM"), plus the scheduled (no-delay) destination
-    arrival ("HH:MM"), for the given trip. Delay estimate prefers live data, falls back to the
+def estimate_office_arrival(route_name, trip_id, headsign, stop_times, live_delay_min, historical_avg_delay_min):
+    """Estimated arrival time at Vlnena ("HH:MM"), the scheduled (no-delay) destination
+    arrival ("HH:MM"), and a note (for short-turn workings that don't reach the usual
+    terminus), for the given trip. Delay estimate prefers live data, falls back to the
     historical average, falls back to 0 (on-time) if neither is available yet."""
     dest_stop_id = DEST_STOP_IDS[route_name]
     key = (trip_id, dest_stop_id)
     if key not in stop_times:
-        return None, None
+        # Not every working of a line runs all the way to the usual terminus (e.g. some S6
+        # trains end at Zidenice, nadrazi instead of continuing to Hlavni nadrazi) - there's
+        # no honest ETA to compute, so say why instead of silently showing nothing.
+        note = f"nejede do cíle, končí v {headsign}" if headsign else "nejede do obvyklého cíle"
+        return None, None, note
     dest_arrival_str, _ = stop_times[key]
     h, m, s = (int(x) for x in dest_arrival_str.split(":"))
     sched_minutes = h * 60 + m + s / 60
@@ -342,7 +347,7 @@ def estimate_office_arrival(route_name, trip_id, stop_times, live_delay_min, his
     total_minutes %= 24 * 60
     eta_str = f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
     dest_sched_str = fmt_hhmm(dest_arrival_str)
-    return eta_str, dest_sched_str
+    return eta_str, dest_sched_str, None
 
 
 def normalize_stop_id(stop_id):
@@ -386,7 +391,7 @@ def get_incident_notes(now):
     return notes
 
 
-def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, stop_times, platform_codes):
+def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, stop_times, platform_codes, trips):
     """Assembles the full status block (live/historical delay, platform, ETA) for one
     specific scheduled departure (trip_id may be None if that departure doesn't run today)."""
     if trip_id is None:
@@ -399,6 +404,7 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
             "historical_sample_size": sample_size,
             "dest_arrival_scheduled": None,
             "eta": None,
+            "eta_note": None,
             "slavkov_time": None,
             "brno_time": None,
         }
@@ -412,7 +418,8 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
             brno_time = e["brno_time"]
             break
     avg_delay, sample_size = historical_average_delay(route_name, dep_time)
-    eta, dest_sched = estimate_office_arrival(route_name, trip_id, stop_times, live_delay, avg_delay)
+    headsign = trips.get(trip_id, (None, None, None))[1]
+    eta, dest_sched, eta_note = estimate_office_arrival(route_name, trip_id, headsign, stop_times, live_delay, avg_delay)
     return {
         "departure": dep_time,
         "platform": platform_codes.get(stop_id, "") or None,
@@ -421,6 +428,7 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
         "historical_sample_size": sample_size,
         "dest_arrival_scheduled": dest_sched,
         "eta": eta,
+        "eta_note": eta_note,
         "slavkov_time": slavkov_time,
         "brno_time": brno_time,
     }
@@ -564,7 +572,7 @@ def main():
         nd = next_departure(origin_departures[route_name], now)
         nd_info = build_departure_info(
             route_name, nd[0] if nd else None, fmt_hhmm(nd[1]) if nd else None, nd[2] if nd else None,
-            rows_by_route, stop_times, platform_codes)
+            rows_by_route, stop_times, platform_codes, trips)
         status[route_name] = {
             "next_departure": nd_info["departure"],  # "HH:MM"
             "platform": nd_info["platform"],
@@ -574,6 +582,7 @@ def main():
             "dest_arrival_scheduled": nd_info["dest_arrival_scheduled"],
             "walk_min": WALK_MINUTES_TO_OFFICE[route_name],
             "eta": nd_info["eta"],
+            "eta_note": nd_info["eta_note"],
             "incident": incident_notes[route_name],
             "slavkov_time": nd_info["slavkov_time"],
             "brno_time": nd_info["brno_time"],
@@ -587,7 +596,7 @@ def main():
             match = by_time.get(dep_time)
             trip_id, stop_id = match if match else (None, None)
             watch_list.append(build_departure_info(
-                route_name, trip_id, dep_time, stop_id, rows_by_route, stop_times, platform_codes))
+                route_name, trip_id, dep_time, stop_id, rows_by_route, stop_times, platform_codes, trips))
         status.setdefault("morning_watch", {})[route_name] = watch_list
 
     with open(STATUS_PATH, "w", encoding="utf-8") as f:
