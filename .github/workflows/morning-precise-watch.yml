@@ -1,0 +1,42 @@
+name: Morning precise watch
+
+on:
+  schedule:
+    # 06:25 Europe/Prague. Currently CEST (UTC+2) -> 04:25 UTC. After DST ends
+    # 2026-10-25 (CET, UTC+1) this will fire at 05:25 local instead - needs updating then.
+    - cron: "25 4 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run precise morning watch
+        env:
+          MAPY_API_KEY: ${{ secrets.MAPY_API_KEY }}
+        run: python3 precise_morning_watch.py
+      - name: Commit and push results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dojizdeni_log_rijen2026.csv latest_status.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Morning precise watch $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin main && break
+            echo "Push rejected, retrying ($i)..."
+            sleep 3
+          done
