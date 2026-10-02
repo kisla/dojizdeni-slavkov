@@ -298,6 +298,13 @@ def load_stop_times_for_trips(zf, trip_ids):
 PRAGUE_TZ = ZoneInfo("Europe/Prague")
 
 
+def shift_hhmm(time_str, delay_min):
+    """Scheduled GTFS time + a delay in minutes, wrapped to 24h, as "HH:MM"."""
+    h, m, s = (int(x) for x in time_str.split(":"))
+    total = round(h * 60 + m + s / 60 + delay_min) % (24 * 60)
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
 def fmt_hhmm(time_str):
     """GTFS times aren't reliably zero-padded ("6:52:00", not "06:52:00"), so a naive
     [:5] slice silently mangles every single-digit hour (00-09) - exactly the morning
@@ -392,11 +399,17 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
             "historical_sample_size": sample_size,
             "dest_arrival_scheduled": None,
             "eta": None,
+            "slavkov_time": None,
+            "brno_time": None,
         }
     live_delay = None
+    slavkov_time = None
+    brno_time = None
     for e in rows_by_route[route_name]:
         if e["trip_id"] == trip_id:
             live_delay = e["delay_min"]
+            slavkov_time = e["slavkov_time"]
+            brno_time = e["brno_time"]
             break
     avg_delay, sample_size = historical_average_delay(route_name, dep_time)
     eta, dest_sched = estimate_office_arrival(route_name, trip_id, stop_times, live_delay, avg_delay)
@@ -408,6 +421,8 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
         "historical_sample_size": sample_size,
         "dest_arrival_scheduled": dest_sched,
         "eta": eta,
+        "slavkov_time": slavkov_time,
+        "brno_time": brno_time,
     }
 
 
@@ -425,14 +440,22 @@ def main():
         all_origin_stop_ids = set().union(*ORIGIN_STOP_IDS.values())
         platform_codes = load_platform_codes(zf, all_origin_stop_ids)
 
-    # trip_id -> its scheduled Slavkov departure time ("HH:MM"), for tagging every logged
-    # delay reading with the specific departure it belongs to (regardless of which stop the
-    # vehicle happened to be tracked at when the reading was taken).
-    trip_departure_time = {
-        trip_id: fmt_hhmm(dep_str)
+    # trip_id -> its scheduled Slavkov departure time, both raw (for shift_hhmm's seconds
+    # parsing) and formatted ("HH:MM", for tagging every logged delay reading with the
+    # specific departure it belongs to, regardless of which stop the vehicle was tracked at).
+    trip_departure_raw = {
+        trip_id: dep_str
         for route_name in ROUTES_OF_INTEREST
         for trip_id, dep_str, _stop_id in origin_departures[route_name]
     }
+    trip_departure_time = {trip_id: fmt_hhmm(dep_str) for trip_id, dep_str in trip_departure_raw.items()}
+
+    # trip_id -> its scheduled Brno-destination arrival time (raw), for the same reason.
+    trip_dest_arrival_raw = {}
+    for trip_id, (route_name, _headsign, _service_id) in trips.items():
+        key = (trip_id, DEST_STOP_IDS[route_name])
+        if key in stop_times:
+            trip_dest_arrival_raw[trip_id] = stop_times[key][0]
 
     rt_data = fetch(GTFS_RT_URL)
     feed = gtfs_realtime_pb2.FeedMessage()
@@ -478,12 +501,20 @@ def main():
         if abs(delay_min) > MAX_PLAUSIBLE_DELAY_MINUTES:
             continue
         seen_vehicle_ids.add(dedup_key)
+        # The observed delay is assumed to hold roughly steady for the rest of the trip, so
+        # it's used to estimate the actual (not just scheduled) time at both checkpoints the
+        # user actually cares about - Slavkov and the Brno terminus - regardless of which
+        # stop the GPS feed happened to report this vehicle at.
+        slavkov_time = shift_hhmm(trip_departure_raw[trip_id], delay_min) if trip_id in trip_departure_raw else None
+        brno_time = shift_hhmm(trip_dest_arrival_raw[trip_id], delay_min) if trip_id in trip_dest_arrival_raw else None
         rows_by_route[route_name].append({
             "trip_id": trip_id,
             "headsign": headsign,
             "stop_id": stop_id,
             "delay_min": delay_min,
             "vehicle_label": v.vehicle.label,
+            "slavkov_time": slavkov_time,
+            "brno_time": brno_time,
         })
 
     car_min, car_note = get_car_drive_minutes()
@@ -495,20 +526,22 @@ def main():
         writer = csv.writer(f)
         if not file_exists:
             writer.writerow(["timestamp", "route", "trip_id", "headsign", "stop_id", "delay_min",
-                              "vehicle_label", "departure_time", "car_drive_min", "note"])
+                              "vehicle_label", "departure_time", "car_drive_min", "note",
+                              "slavkov_time", "brno_time"])
         ts = now.strftime("%Y-%m-%d %H:%M:%S")
         for route_name in ROUTES_OF_INTEREST.keys():
             entries = rows_by_route[route_name]
             nd_for_log = next_departure(origin_departures[route_name], now)
             if not entries:
                 writer.writerow([ts, route_name, "", "NO_ACTIVE_VEHICLE", "", "", "",
-                                  fmt_hhmm(nd_for_log[1]) if nd_for_log else "", "", ""])
+                                  fmt_hhmm(nd_for_log[1]) if nd_for_log else "", "", "", "", ""])
                 continue
             # pick the vehicle closest to Brno-bound progress; just log all found (usually 1)
             for e in entries:
                 writer.writerow([ts, route_name, e["trip_id"], e["headsign"], e["stop_id"], e["delay_min"],
-                                  e["vehicle_label"], trip_departure_time.get(e["trip_id"], ""), "", ""])
-        writer.writerow([ts, "CAR", "", "", "", "", "", car_slot, car_min if car_min is not None else "", car_note])
+                                  e["vehicle_label"], trip_departure_time.get(e["trip_id"], ""), "", "",
+                                  e["slavkov_time"] or "", e["brno_time"] or ""])
+        writer.writerow([ts, "CAR", "", "", "", "", "", car_slot, car_min if car_min is not None else "", car_note, "", ""])
         print(f"Logged {ts}: " + ", ".join(f"{r}={len(rows_by_route[r])} vehicle(s)" for r in ROUTES_OF_INTEREST.keys())
               + f", car={car_min} min" + (f" ({car_note})" if car_note else ""))
 
@@ -542,6 +575,8 @@ def main():
             "walk_min": WALK_MINUTES_TO_OFFICE[route_name],
             "eta": nd_info["eta"],
             "incident": incident_notes[route_name],
+            "slavkov_time": nd_info["slavkov_time"],
+            "brno_time": nd_info["brno_time"],
         }
 
         # Realistic morning departures, tracked every weekday regardless of which one is

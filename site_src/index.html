@@ -324,12 +324,14 @@
             <th>Čas měření</th>
             <th>Linka</th>
             <th>Odjezd</th>
+            <th>Slavkov</th>
+            <th>Brno</th>
             <th class="num">Zpoždění</th>
             <th class="num">Auto</th>
           </tr>
         </thead>
         <tbody id="history-body">
-          <tr><td colspan="5" class="empty-state">Načítám…</td></tr>
+          <tr><td colspan="7" class="empty-state">Načítám…</td></tr>
         </tbody>
       </table>
     </div>
@@ -501,7 +503,7 @@
     const relevant = rows.filter(r => r.route === "106" || r.route === "S6" || r.route === "CAR");
     const recent = relevant.slice(-30).reverse();
     if (recent.length === 0) {
-      document.getElementById("history-body").innerHTML = '<tr><td colspan="5" class="empty-state">Zatím žádná data.</td></tr>';
+      document.getElementById("history-body").innerHTML = '<tr><td colspan="7" class="empty-state">Zatím žádná data.</td></tr>';
       return;
     }
     const byTimestamp = {};
@@ -522,12 +524,14 @@
           <td class="mono">${ts}</td>
           <td>${ROUTE_LABELS[route]}</td>
           <td class="mono">${r.departure_time || "—"}</td>
+          <td class="mono">${r.slavkov_time || "—"}</td>
+          <td class="mono">${r.brno_time || "—"}</td>
           <td class="num mono">${delay !== null ? delay + " min" : (r.headsign === "NO_ACTIVE_VEHICLE" ? "—" : "?")}</td>
           <td class="num mono">${entry.car || "—"}</td>
         </tr>`;
       });
     });
-    document.getElementById("history-body").innerHTML = html || '<tr><td colspan="5" class="empty-state">Zatím žádná data.</td></tr>';
+    document.getElementById("history-body").innerHTML = html || '<tr><td colspan="7" class="empty-state">Zatím žádná data.</td></tr>';
   }
 
   let lastGeneratedAt = null;
