@@ -4,6 +4,10 @@ on:
   schedule:
     # 06:25 Europe/Prague. Currently CEST (UTC+2) -> 04:25 UTC. After DST ends
     # 2026-10-25 (CET, UTC+1) this will fire at 05:25 local instead - needs updating then.
+    # Re-saved 2026-10-05 to force GitHub to re-register the schedule: the cron never
+    # fired on its own for the first three eligible weekdays (Oct 2, 5) after creation -
+    # a known GitHub Actions quirk where a newly added schedule trigger needs a fresh
+    # commit touching the workflow file to actually get picked up.
     - cron: "25 4 * * 1-5"
   workflow_dispatch: {}
 
