@@ -1,26 +1,26 @@
 {
-  "generated_at": "2026-10-02T16:28:58.053339+02:00",
+  "generated_at": "2026-10-05T09:14:34.463445+02:00",
   "car": {
-    "drive_min": 19.9,
+    "drive_min": 29.4,
     "note": "",
-    "eta": "16:49",
-    "departure_time": "16:30",
-    "historical_avg_min": 19.9,
-    "historical_sample_size": 2
+    "eta": "09:44",
+    "departure_time": "09:15",
+    "historical_avg_min": 29.4,
+    "historical_sample_size": 1
   },
   "106": {
-    "next_departure": "16:52",
+    "next_departure": "09:52",
     "platform": "2",
-    "live_delay_min": -3.4,
-    "historical_avg_delay_min": -4.3,
-    "historical_sample_size": 2,
-    "dest_arrival_scheduled": "17:17",
+    "live_delay_min": 0.6,
+    "historical_avg_delay_min": -10.4,
+    "historical_sample_size": 4,
+    "dest_arrival_scheduled": "10:17",
     "walk_min": 8,
-    "eta": "17:22",
+    "eta": "10:26",
     "eta_note": null,
     "incident": null,
-    "slavkov_time": "16:49",
-    "brno_time": "17:14"
+    "slavkov_time": "09:53",
+    "brno_time": "10:18"
   },
   "morning_watch": {
     "106": [
@@ -101,17 +101,17 @@
     ]
   },
   "S6": {
-    "next_departure": "16:38",
+    "next_departure": "10:08",
     "platform": null,
-    "live_delay_min": null,
-    "historical_avg_delay_min": null,
-    "historical_sample_size": 0,
-    "dest_arrival_scheduled": null,
+    "live_delay_min": 0.3,
+    "historical_avg_delay_min": 0.3,
+    "historical_sample_size": 1,
+    "dest_arrival_scheduled": "10:33",
     "walk_min": 7,
-    "eta": null,
-    "eta_note": "nejede do cíle, končí v Židenice, nádraží",
+    "eta": "10:40",
+    "eta_note": null,
     "incident": null,
-    "slavkov_time": null,
-    "brno_time": null
+    "slavkov_time": "10:08",
+    "brno_time": "10:33"
   }
 }
