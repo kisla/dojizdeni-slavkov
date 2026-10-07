@@ -511,8 +511,14 @@
     const byTimestamp = {};
     recent.forEach(r => {
       byTimestamp[r.timestamp] = byTimestamp[r.timestamp] || {};
-      if (r.route === "CAR") byTimestamp[r.timestamp].car = r.car_drive_min;
-      else byTimestamp[r.timestamp][r.route] = r;
+      if (r.route === "CAR") { byTimestamp[r.timestamp].car = r.car_drive_min; return; }
+      // Multiple vehicles on the same route can be caught in a single poll (e.g. several
+      // S6 trains at once); only the one matched to an actual monitored departure
+      // (non-empty departure_time) is meaningful, so don't let an unmatched row overwrite it.
+      const existing = byTimestamp[r.timestamp][r.route];
+      if (!existing || (!existing.departure_time && r.departure_time)) {
+        byTimestamp[r.timestamp][r.route] = r;
+      }
     });
     const timestamps = Object.keys(byTimestamp).sort().reverse().slice(0, 15);
     let html = "";
