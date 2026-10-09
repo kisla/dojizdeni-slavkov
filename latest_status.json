@@ -1,29 +1,26 @@
 {
-  "generated_at": "2026-10-09T07:40:31.892454+02:00",
+  "generated_at": "2026-10-09T07:42:05.787771+02:00",
   "car": {
-    "drive_min": 31.0,
+    "drive_min": 24.4,
     "note": "",
-    "eta": "08:12",
+    "eta": "08:06",
     "departure_time": "07:45",
-    "historical_avg_min": 25.7,
-    "historical_sample_size": 2
+    "historical_avg_min": 25.3,
+    "historical_sample_size": 3
   },
   "106": {
     "next_departure": "07:52",
     "platform": "2",
-    "live_delay_min": 4.0,
+    "live_delay_min": 2.5,
     "historical_avg_delay_min": 2.2,
-    "historical_sample_size": 10,
+    "historical_sample_size": 11,
     "dest_arrival_scheduled": "08:17",
     "walk_min": 8,
-    "eta": "08:29",
+    "eta": "08:28",
     "eta_note": null,
-    "incident": {
-      "text": "Dopravní komplikace na D1 a silný provoz na okolních komunikacích (převážně u Brna), počítejte se zdržením spojů cca 5 až 15min (ojediněle i více) u linek 106, 107, 601, 602, 701, 702 a i na lince 151. Děkujeme za pochopení.",
-      "time": "2026-10-09T07:25:56.883423+02:00"
-    },
-    "slavkov_time": "07:56",
-    "brno_time": "08:21"
+    "incident": null,
+    "slavkov_time": "07:54",
+    "brno_time": "08:20"
   },
   "morning_watch": {
     "106": [
@@ -54,14 +51,14 @@
       {
         "departure": "07:52",
         "platform": "2",
-        "live_delay_min": 4.0,
+        "live_delay_min": 2.5,
         "historical_avg_delay_min": 2.2,
-        "historical_sample_size": 10,
+        "historical_sample_size": 11,
         "dest_arrival_scheduled": "08:17",
-        "eta": "08:29",
+        "eta": "08:28",
         "eta_note": null,
-        "slavkov_time": "07:56",
-        "brno_time": "08:21"
+        "slavkov_time": "07:54",
+        "brno_time": "08:20"
       }
     ],
     "S6": [
