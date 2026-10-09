@@ -355,10 +355,14 @@ def estimate_office_arrival(route_name, trip_id, headsign, stop_times, live_dela
 
 
 def normalize_stop_id(stop_id):
-    """Strips zero-padding GTFS-RT adds to single-digit platform codes (e.g. "Z02" -> "Z2")
-    so it matches the static schedule's stop_ids. Leaves multi-digit codes (e.g. "Z10")
-    untouched, since there's no digit directly before the padding zero(s) in that case."""
-    return re.sub(r"(\D)0+(\d)$", r"\1\2", stop_id)
+    """Strips zero-padding GTFS-RT adds to numeric segments of a stop_id so it matches the
+    static schedule's stop_ids - not just the trailing platform code (e.g. "Z02" -> "Z2"),
+    but also the stop-code number itself (e.g. the Hlavni nadrazi terminus is "U1146Z99" in
+    the static schedule but reported as "U01146Z99" in GTFS-RT). Without this, every S6
+    vehicle report at that terminus failed to match stop_times and was silently dropped -
+    precise_morning_watch.py never once recorded a real Brno arrival for S6 in a month of
+    logging, because the one stop_id it was watching for never matched."""
+    return re.sub(r"\d+", lambda m: str(int(m.group())), stop_id)
 
 
 def strip_html(text):
