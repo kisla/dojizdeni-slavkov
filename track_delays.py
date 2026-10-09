@@ -395,6 +395,39 @@ def get_incident_notes(now):
     return notes
 
 
+def lookup_todays_trip_history(route_name, trip_id, today_date_str):
+    """Scans today's already-logged rows for this specific trip_id. Returns the latest
+    (most recently logged) delay/slavkov_time/brno_time seen today for it, plus - if
+    precise_morning_watch.py recorded a "precise-brno" checkpoint for it - that
+    checkpoint's own delay/time, which is a real observation made right at the Brno
+    destination stop, more trustworthy than a live mid-route snapshot (whose slavkov/brno
+    times are only the current delay propagated across the whole trip, not an actual
+    measurement at either end). Used so that a trip which has already finished and
+    dropped out of the live GTFS-RT feed by the time of a later poll still shows its last
+    known figures instead of falling back to the generic historical average."""
+    result = {
+        "latest_delay": None, "latest_slavkov": None, "latest_brno": None,
+        "precise_brno_delay": None, "precise_brno_time": None,
+    }
+    if not os.path.exists(LOG_PATH):
+        return result
+    with open(LOG_PATH, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if (row.get("route") != route_name or row.get("trip_id") != trip_id
+                    or not row.get("timestamp", "").startswith(today_date_str)):
+                continue
+            delay_str = row.get("delay_min", "")
+            if delay_str == "":
+                continue
+            result["latest_delay"] = float(delay_str)
+            result["latest_slavkov"] = row.get("slavkov_time") or result["latest_slavkov"]
+            result["latest_brno"] = row.get("brno_time") or result["latest_brno"]
+            if row.get("headsign") == "precise-brno":
+                result["precise_brno_delay"] = result["latest_delay"]
+                result["precise_brno_time"] = row.get("brno_time") or None
+    return result
+
+
 def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, stop_times, platform_codes, trips):
     """Assembles the full status block (live/historical delay, platform, ETA) for one
     specific scheduled departure (trip_id may be None if that departure doesn't run today)."""
@@ -421,6 +454,20 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
             slavkov_time = e["slavkov_time"]
             brno_time = e["brno_time"]
             break
+    today_str = datetime.datetime.now(PRAGUE_TZ).strftime("%Y-%m-%d")
+    hist = lookup_todays_trip_history(route_name, trip_id, today_str)
+    if hist["precise_brno_delay"] is not None:
+        # A precise_morning_watch.py checkpoint beats any live/mid-route snapshot - it's
+        # measured right at the destination, not propagated from wherever the vehicle was.
+        live_delay = hist["precise_brno_delay"]
+        slavkov_time = slavkov_time or hist["latest_slavkov"]
+        brno_time = hist["precise_brno_time"] or brno_time
+    elif live_delay is None:
+        # Not on the live feed right now (likely already finished its run and dropped off)
+        # - fall back to the last reading logged for it earlier today rather than going blank.
+        live_delay = hist["latest_delay"]
+        slavkov_time = slavkov_time or hist["latest_slavkov"]
+        brno_time = brno_time or hist["latest_brno"]
     avg_delay, sample_size = historical_average_delay(route_name, dep_time)
     headsign = trips.get(trip_id, (None, None, None))[1]
     eta, dest_sched, eta_note = estimate_office_arrival(route_name, trip_id, headsign, stop_times, live_delay, avg_delay)

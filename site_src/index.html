@@ -304,12 +304,14 @@
             <th>Linka</th>
             <th>Odjezd</th>
             <th>Nástupiště</th>
+            <th class="mono">Slavkov</th>
+            <th class="mono">Brno</th>
             <th class="num">Zpoždění</th>
             <th class="num">Dorazíte</th>
           </tr>
         </thead>
         <tbody id="watch-body">
-          <tr><td colspan="5" class="empty-state">Načítám…</td></tr>
+          <tr><td colspan="7" class="empty-state">Načítám…</td></tr>
         </tbody>
       </table>
     </div>
@@ -459,7 +461,7 @@
       }
     }
     if (rows.length === 0) {
-      document.getElementById("watch-body").innerHTML = '<tr><td colspan="5" class="empty-state">Zatím žádná data.</td></tr>';
+      document.getElementById("watch-body").innerHTML = '<tr><td colspan="7" class="empty-state">Zatím žádná data.</td></tr>';
       return;
     }
     document.getElementById("watch-body").innerHTML = rows.map(r => {
@@ -472,6 +474,8 @@
         <td>${r.label}</td>
         <td class="mono">${r.departure}</td>
         <td class="mono">${r.platform || "—"}</td>
+        <td class="mono">${r.slavkov_time || "—"}</td>
+        <td class="mono">${r.brno_time || "—"}</td>
         <td class="num">${delay}</td>
         <td class="num mono">${r.eta || "—"}</td>
       </tr>`;
