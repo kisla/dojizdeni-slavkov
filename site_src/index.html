@@ -479,7 +479,10 @@
   }
 
   function parseCsv(text) {
-    const lines = text.trim().split("\n");
+    // The CSV is written with CRLF line endings; splitting on "\n" alone would leave a
+    // trailing "\r" stuck to the last field of every line (header's last column name
+    // becomes "brno_time\r", so row.brno_time would never match and always render "—").
+    const lines = text.trim().split(/\r?\n/);
     const header = lines[0].split(",");
     const rows = [];
     for (let i = 1; i < lines.length; i++) {

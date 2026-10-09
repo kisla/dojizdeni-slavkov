@@ -44,10 +44,14 @@ STATIC_MAX_AGE_HOURS = 20
 STALE_VEHICLE_MAX_AGE_MINUTES = 20
 # KORDIS's AVL system occasionally leaves a vehicle tagged with a trip_id it already
 # finished (or hasn't started), while its GPS position/timestamp is genuinely live - this
-# produces wildly implausible delays (observed: +206.7, -528.9 min) that are a feed
-# misassignment artifact, not a real delay. A regional line running an hour+ off schedule
-# would be newsworthy; treat readings beyond this as noise rather than record them.
-MAX_PLAUSIBLE_DELAY_MINUTES = 60
+# produces implausible delays that are a feed misassignment artifact, not a real delay.
+# A month of logged readings shows a clean gap between genuine delays (-13.4 to +18.2 min)
+# and this artifact (observed as low as -58.7 min) - nothing legitimate falls in between,
+# so 20 min is a safe cutoff that catches the artifact without risking real disruptions
+# (previously 60, which let milder cases of the same artifact slip through and pollute
+# the historical-average stats, e.g. the S6 07:43 average was skewed from -0.2 to -7.2 min
+# by a single -41.9 reading).
+MAX_PLAUSIBLE_DELAY_MINUTES = 20
 
 # Platform stop_ids at the Slavkov u Brna origin stops (grouped by parent_station in stops.txt):
 # bus station (parent U16328N107) and train station (parent U16333N246).
