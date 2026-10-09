@@ -1,26 +1,26 @@
 {
-  "generated_at": "2026-10-09T07:42:05.787771+02:00",
+  "generated_at": "2026-10-09T07:53:37.726500+02:00",
   "car": {
-    "drive_min": 24.4,
+    "drive_min": 30.1,
     "note": "",
-    "eta": "08:06",
-    "departure_time": "07:45",
-    "historical_avg_min": 25.3,
-    "historical_sample_size": 3
+    "eta": "08:24",
+    "departure_time": "08:00",
+    "historical_avg_min": 30.1,
+    "historical_sample_size": 1
   },
   "106": {
-    "next_departure": "07:52",
+    "next_departure": "08:52",
     "platform": "2",
-    "live_delay_min": 2.5,
-    "historical_avg_delay_min": 2.2,
-    "historical_sample_size": 11,
-    "dest_arrival_scheduled": "08:17",
+    "live_delay_min": -6.2,
+    "historical_avg_delay_min": -8.0,
+    "historical_sample_size": 8,
+    "dest_arrival_scheduled": "09:17",
     "walk_min": 8,
-    "eta": "08:28",
+    "eta": "09:19",
     "eta_note": null,
     "incident": null,
-    "slavkov_time": "07:54",
-    "brno_time": "08:20"
+    "slavkov_time": "08:46",
+    "brno_time": "09:11"
   },
   "morning_watch": {
     "106": [
@@ -51,14 +51,14 @@
       {
         "departure": "07:52",
         "platform": "2",
-        "live_delay_min": 2.5,
-        "historical_avg_delay_min": 2.2,
-        "historical_sample_size": 11,
+        "live_delay_min": 3.7,
+        "historical_avg_delay_min": 2.3,
+        "historical_sample_size": 12,
         "dest_arrival_scheduled": "08:17",
-        "eta": "08:28",
+        "eta": "08:29",
         "eta_note": null,
-        "slavkov_time": "07:54",
-        "brno_time": "08:20"
+        "slavkov_time": "07:56",
+        "brno_time": "08:21"
       }
     ],
     "S6": [
@@ -101,14 +101,14 @@
     ]
   },
   "S6": {
-    "next_departure": "07:43",
+    "next_departure": "08:08",
     "platform": null,
     "live_delay_min": null,
-    "historical_avg_delay_min": -0.2,
-    "historical_sample_size": 5,
-    "dest_arrival_scheduled": "08:20",
+    "historical_avg_delay_min": 2.5,
+    "historical_sample_size": 1,
+    "dest_arrival_scheduled": "08:33",
     "walk_min": 7,
-    "eta": "08:27",
+    "eta": "08:42",
     "eta_note": null,
     "incident": null,
     "slavkov_time": null,
