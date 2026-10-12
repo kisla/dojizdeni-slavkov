@@ -399,6 +399,32 @@ def get_incident_notes(now):
     return notes
 
 
+def is_stale_repeat(route_name, trip_id, vehicle_label, delay_min, slavkov_time, brno_time):
+    """True if the most recent earlier log row for this trip_id today already has this
+    exact vehicle_label/delay_min/slavkov_time/brno_time combination - i.e. the GTFS-RT
+    feed is still serving the same unrefreshed position report as last poll, not a new
+    live observation. A genuinely moving vehicle's delay (and the slavkov/brno times
+    derived from it) changes between polls; four fields matching exactly is not plausible
+    for two independent live readings. Returns False (not a repeat) if there's no prior
+    row for this trip_id today, or if the log doesn't exist yet."""
+    if not os.path.exists(LOG_PATH):
+        return False
+    today_str = datetime.datetime.now(PRAGUE_TZ).strftime("%Y-%m-%d")
+    last = None
+    with open(LOG_PATH, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if (row.get("route") != route_name or row.get("trip_id") != trip_id
+                    or not row.get("timestamp", "").startswith(today_str)):
+                continue
+            last = row
+    if last is None:
+        return False
+    return (last.get("vehicle_label") == vehicle_label
+            and last.get("delay_min") == str(delay_min)
+            and (last.get("slavkov_time") or None) == slavkov_time
+            and (last.get("brno_time") or None) == brno_time)
+
+
 def lookup_todays_trip_history(route_name, trip_id, today_date_str):
     """Scans today's already-logged rows for this specific trip_id. Returns the latest
     (most recently logged) delay/slavkov_time/brno_time seen today for it, plus - if
@@ -570,6 +596,15 @@ def main():
         # stop the GPS feed happened to report this vehicle at.
         slavkov_time = shift_hhmm(trip_departure_raw[trip_id], delay_min) if trip_id in trip_departure_raw else None
         brno_time = shift_hhmm(trip_dest_arrival_raw[trip_id], delay_min) if trip_id in trip_dest_arrival_raw else None
+        if is_stale_repeat(route_name, trip_id, v.vehicle.label, delay_min, slavkov_time, brno_time):
+            # Confirmed 2026-10-12: a vehicle can sit at a stop without its GTFS-RT position
+            # report ever refreshing, so successive polls keep re-reading the exact same
+            # (stale) report rather than a new live observation - e.g. trip 1379 logged an
+            # identical -18.5 min/slavkov/brno/vehicle_label combo on two polls 8 minutes
+            # apart, which a genuinely moving vehicle would never produce. Treat this like
+            # "nothing new to report" rather than logging a second (illusory) measurement
+            # that would double-count the same event in the historical average.
+            continue
         rows_by_route[route_name].append({
             "trip_id": trip_id,
             "headsign": headsign,
