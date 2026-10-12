@@ -31,7 +31,10 @@ jobs:
           fi
           git commit -m "On-demand measurement (dashboard)"
           for i in 1 2 3 4 5; do
-            git pull --rebase origin main && git push origin main && break
+            git pull --rebase origin main && git push origin main && exit 0
             echo "Push rejected, retrying ($i)..."
+            git rebase --abort 2>/dev/null || true
             sleep 3
           done
+          echo "::error::Failed to push after 5 attempts - this run's measurement was NOT saved (see merge conflict above)."
+          exit 1
