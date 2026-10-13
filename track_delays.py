@@ -23,6 +23,7 @@ import csv
 import datetime
 from zoneinfo import ZoneInfo
 import json
+import math
 import os
 import re
 import zipfile
@@ -73,6 +74,26 @@ DEST_STOP_IDS = {
     "106": "U1696Z6",   # UAN Zvonarka
     "S6": "U1146Z99",   # Hlavni nadrazi
 }
+# Confirmed 2026-10-13: requiring the GTFS-RT feed's reported stop_id to exactly equal
+# the terminus stop_id (matched only on whichever single poll happens to land while the
+# vehicle is tagged as "at" that exact stop) missed the Brno arrival checkpoint far more
+# often than it caught it - a bus/train dwelling at the terminus for a minute+ can easily
+# fall between two 60s polls without ever reporting that precise stop_id. The feed already
+# includes a live lat/lon position on every report regardless of stop_id, so
+# precise_morning_watch.py instead also accepts "vehicle is within this many meters of the
+# terminus" as an arrival signal - still a real, directly observed position, not an
+# estimate propagated from elsewhere.
+ARRIVAL_PROXIMITY_METERS = 200
+
+
+def haversine_distance_m(lon1, lat1, lon2, lat2):
+    """Great-circle distance in meters between two WGS84 lon/lat points."""
+    r = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
 # Walking time from each terminus to Vlnena (Prizova 7), estimated from straight-line
 # distance with a 1.3x street-detour factor at ~80 m/min walking pace, rounded up for
 # street crossings. Not live data - these distances/routes don't meaningfully change.
@@ -215,6 +236,17 @@ def load_platform_codes(zf, stop_ids):
         for row in reader:
             if row["stop_id"] in stop_ids:
                 result[row["stop_id"]] = row.get("platform_code", "")
+    return result
+
+
+def load_stop_lonlat(zf, stop_ids):
+    """Returns dict stop_id -> (lon, lat) for the given stop_ids, from stops.txt."""
+    result = {}
+    with zf.open("stops.txt") as f:
+        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
+        for row in reader:
+            if row["stop_id"] in stop_ids:
+                result[row["stop_id"]] = (float(row["stop_lon"]), float(row["stop_lat"]))
     return result
 
 
@@ -437,7 +469,7 @@ def lookup_todays_trip_history(route_name, trip_id, today_date_str):
     known figures instead of falling back to the generic historical average."""
     result = {
         "latest_delay": None, "latest_slavkov": None, "latest_brno": None,
-        "precise_brno_delay": None, "precise_brno_time": None,
+        "precise_brno_delay": None, "precise_brno_time": None, "precise_brno_distance_m": None,
     }
     if not os.path.exists(LOG_PATH):
         return result
@@ -455,6 +487,11 @@ def lookup_todays_trip_history(route_name, trip_id, today_date_str):
             if row.get("headsign") == "precise-brno":
                 result["precise_brno_delay"] = result["latest_delay"]
                 result["precise_brno_time"] = row.get("brno_time") or None
+                note = row.get("note", "")
+                try:
+                    result["precise_brno_distance_m"] = float(note) if note else None
+                except ValueError:
+                    result["precise_brno_distance_m"] = None
     return result
 
 
@@ -474,10 +511,12 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
             "eta_note": None,
             "slavkov_time": None,
             "brno_time": None,
+            "distance_m": None,
         }
     live_delay = None
     slavkov_time = None
     brno_time = None
+    distance_m = None
     for e in rows_by_route[route_name]:
         if e["trip_id"] == trip_id:
             live_delay = e["delay_min"]
@@ -492,6 +531,7 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
         live_delay = hist["precise_brno_delay"]
         slavkov_time = slavkov_time or hist["latest_slavkov"]
         brno_time = hist["precise_brno_time"] or brno_time
+        distance_m = hist["precise_brno_distance_m"]
     elif live_delay is None:
         # Not on the live feed right now (likely already finished its run and dropped off)
         # - fall back to the last reading logged for it earlier today rather than going blank.
@@ -512,6 +552,7 @@ def build_departure_info(route_name, trip_id, dep_time, stop_id, rows_by_route, 
         "eta_note": eta_note,
         "slavkov_time": slavkov_time,
         "brno_time": brno_time,
+        "distance_m": distance_m,
     }
 
 
@@ -676,6 +717,7 @@ def main():
             "incident": incident_notes[route_name],
             "slavkov_time": nd_info["slavkov_time"],
             "brno_time": nd_info["brno_time"],
+            "distance_m": nd_info["distance_m"],
         }
 
         # Realistic morning departures, tracked every weekday regardless of which one is

@@ -378,12 +378,15 @@
     } catch (e) { return iso; }
   }
 
-  function delayBadge(minutes) {
+  function delayBadge(minutes, distanceM) {
     if (minutes === null || minutes === undefined) {
       return '<span class="badge neutral"><span class="dot"></span>bez živých dat</span>';
     }
     const rounded = Math.round(minutes * 10) / 10;
-    const label = rounded <= 0 ? "včas" : rounded + " min zpoždění";
+    let label = rounded <= 0 ? "včas" : rounded + " min zpoždění";
+    if (distanceM !== null && distanceM !== undefined) {
+      label += ` (${Math.round(distanceM)} m od cíle)`;
+    }
     let cls = "good";
     if (rounded > 2 && rounded <= 7) cls = "warn";
     if (rounded > 7) cls = "bad";
@@ -430,7 +433,7 @@
           <div class="eta-label">odjezd</div>
           <div class="headline mono">${next}</div>
           <div class="sub">${etaLine}${platformNote}</div>
-          ${delayBadge(data.live_delay_min)}
+          ${delayBadge(data.live_delay_min, data.distance_m)}
           <div class="sub">${hist}</div>
           <div class="sub">${walkNote}</div>
           ${incidentHtml}
@@ -466,7 +469,7 @@
     }
     document.getElementById("watch-body").innerHTML = rows.map(r => {
       const delay = (r.live_delay_min !== null && r.live_delay_min !== undefined)
-        ? delayBadge(r.live_delay_min)
+        ? delayBadge(r.live_delay_min, r.distance_m)
         : (r.historical_avg_delay_min !== null && r.historical_avg_delay_min !== undefined)
           ? `<span class="badge neutral"><span class="dot"></span>obvykle ${r.historical_avg_delay_min} min (z ${r.historical_sample_size})</span>`
           : '<span class="badge neutral"><span class="dot"></span>bez dat</span>';

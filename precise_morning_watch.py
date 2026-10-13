@@ -37,6 +37,9 @@ def resolve_targets(today):
         stop_times = td.load_stop_times_for_trips(zf, set(trips.keys()))
         valid_service_ids = td.load_valid_service_ids(zf, today)
         origin_departures = td.load_origin_departures(zf, trips, valid_service_ids)
+        origin_stop_ids = {stop_id for deps in origin_departures.values() for _tid, _dep, stop_id in deps}
+        dest_stop_ids = set(td.DEST_STOP_IDS.values())
+        stop_lonlat = td.load_stop_lonlat(zf, origin_stop_ids | dest_stop_ids)
 
     targets = []
     for route_name, dep_times in td.MONITORED_DEPARTURES.items():
@@ -46,9 +49,12 @@ def resolve_targets(today):
             if not match:
                 continue  # doesn't run today (holiday, etc.)
             trip_id, slavkov_stop_id = match
+            brno_stop_id = td.DEST_STOP_IDS[route_name]
             targets.append({
                 "route": route_name, "departure": dep_time, "trip_id": trip_id,
-                "slavkov_stop_id": slavkov_stop_id, "brno_stop_id": td.DEST_STOP_IDS[route_name],
+                "slavkov_stop_id": slavkov_stop_id, "brno_stop_id": brno_stop_id,
+                "slavkov_lonlat": stop_lonlat.get(slavkov_stop_id),
+                "brno_lonlat": stop_lonlat.get(brno_stop_id),
                 "slavkov_done": False, "brno_done": False,
                 "slavkov_time": "", "brno_time": "",
             })
@@ -66,7 +72,7 @@ def compute_window_end_minutes(targets, stop_times):
     return min(latest_min + POST_WINDOW_BUFFER_MINUTES, cap_h * 60 + cap_m)
 
 
-def append_checkpoint_row(t, checkpoint, delay_min, vehicle_label):
+def append_checkpoint_row(t, checkpoint, delay_min, vehicle_label, distance_m):
     file_exists = os.path.exists(td.LOG_PATH)
     with open(td.LOG_PATH, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -77,8 +83,12 @@ def append_checkpoint_row(t, checkpoint, delay_min, vehicle_label):
         now = datetime.datetime.now(td.PRAGUE_TZ)
         ts = now.strftime("%Y-%m-%d %H:%M:%S")
         stop_id = t["slavkov_stop_id"] if checkpoint == "slavkov" else t["brno_stop_id"]
+        # note holds the measured distance (meters) from the vehicle's live GPS position to
+        # the target stop at the moment this checkpoint fired - kept as a plain number so
+        # downstream code (lookup_todays_trip_history) can parse it back out.
+        note = f"{distance_m:.0f}" if distance_m is not None else ""
         writer.writerow([ts, t["route"], t["trip_id"], f"precise-{checkpoint}", stop_id,
-                          delay_min, vehicle_label, t["departure"], "", "",
+                          delay_min, vehicle_label, t["departure"], "", note,
                           t["slavkov_time"], t["brno_time"]])
 
 
@@ -99,15 +109,36 @@ def poll_once(targets, stop_times, now):
         t = by_trip.get(v.trip.trip_id)
         if t is None:
             continue
-        stop_id = td.normalize_stop_id(v.stop_id)
-        for checkpoint, stop_key in (("slavkov", "slavkov_stop_id"), ("brno", "brno_stop_id")):
-            if t[f"{checkpoint}_done"] or stop_id != t[stop_key]:
+        reported_stop_id = td.normalize_stop_id(v.stop_id)
+        for checkpoint, stop_key, lonlat_key in (
+            ("slavkov", "slavkov_stop_id", "slavkov_lonlat"),
+            ("brno", "brno_stop_id", "brno_lonlat"),
+        ):
+            if t[f"{checkpoint}_done"]:
                 continue
-            key = (v.trip.trip_id, stop_id)
+            target_stop_id = t[stop_key]
+            exact_match = reported_stop_id == target_stop_id
+            # The feed reports a live lat/lon on every position update regardless of
+            # which stop_id it's currently tagged with, so "within N meters of the
+            # target stop" is an equally real, directly observed arrival signal - and a
+            # much more forgiving one than needing to land a poll in the exact instant
+            # the feed happens to say stop_id == target_stop_id (see ARRIVAL_PROXIMITY_METERS).
+            distance_m = None
+            if t.get(lonlat_key) and v.HasField("position"):
+                target_lon, target_lat = t[lonlat_key]
+                distance_m = td.haversine_distance_m(
+                    v.position.longitude, v.position.latitude, target_lon, target_lat)
+            proximity_match = distance_m is not None and distance_m <= td.ARRIVAL_PROXIMITY_METERS
+            if not (exact_match or proximity_match):
+                continue
+            # Always look up the scheduled time via the target's own known stop_id, not
+            # whatever stop_id the feed happened to report - a proximity match may not
+            # report the target stop_id at all.
+            key = (v.trip.trip_id, target_stop_id)
             if key not in stop_times:
                 continue
             arrival_str, departure_str = stop_times[key]
-            sched_str = departure_str if v.current_status == 1 else arrival_str
+            sched_str = departure_str if checkpoint == "slavkov" else arrival_str
             try:
                 sched_epoch = td.gtfs_time_to_epoch(sched_str, now.date())
             except Exception:
@@ -121,8 +152,10 @@ def poll_once(targets, stop_times, now):
             actual_time = datetime.datetime.fromtimestamp(actual_epoch, td.PRAGUE_TZ).strftime("%H:%M")
             t[f"{checkpoint}_done"] = True
             t[f"{checkpoint}_time"] = actual_time
-            print(f"{t['route']} {t['departure']}: measured {checkpoint} at {actual_time} (delay {delay_min} min)")
-            append_checkpoint_row(t, checkpoint, delay_min, v.vehicle.label)
+            match_desc = "exact stop" if exact_match else f"{distance_m:.0f}m away"
+            print(f"{t['route']} {t['departure']}: measured {checkpoint} at {actual_time} "
+                  f"(delay {delay_min} min, {match_desc})")
+            append_checkpoint_row(t, checkpoint, delay_min, v.vehicle.label, distance_m)
 
 
 def main():
