@@ -122,13 +122,15 @@ def poll_once(targets, stop_times, now):
             # which stop_id it's currently tagged with, so "within N meters of the
             # target stop" is an equally real, directly observed arrival signal - and a
             # much more forgiving one than needing to land a poll in the exact instant
-            # the feed happens to say stop_id == target_stop_id (see ARRIVAL_PROXIMITY_METERS).
+            # the feed happens to say stop_id == target_stop_id (see
+            # ARRIVAL_PROXIMITY_METERS / SLAVKOV_PROXIMITY_METERS in track_delays.py).
             distance_m = None
             if t.get(lonlat_key) and v.HasField("position"):
                 target_lon, target_lat = t[lonlat_key]
                 distance_m = td.haversine_distance_m(
                     v.position.longitude, v.position.latitude, target_lon, target_lat)
-            proximity_match = distance_m is not None and distance_m <= td.ARRIVAL_PROXIMITY_METERS
+            threshold_m = td.SLAVKOV_PROXIMITY_METERS if checkpoint == "slavkov" else td.ARRIVAL_PROXIMITY_METERS
+            proximity_match = distance_m is not None and distance_m <= threshold_m
             if not (exact_match or proximity_match):
                 continue
             # Always look up the scheduled time via the target's own known stop_id, not

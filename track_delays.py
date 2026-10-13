@@ -81,9 +81,14 @@ DEST_STOP_IDS = {
 # fall between two 60s polls without ever reporting that precise stop_id. The feed already
 # includes a live lat/lon position on every report regardless of stop_id, so
 # precise_morning_watch.py instead also accepts "vehicle is within this many meters of the
-# terminus" as an arrival signal - still a real, directly observed position, not an
-# estimate propagated from elsewhere.
-ARRIVAL_PROXIMITY_METERS = 200
+# target stop" as an arrival/departure signal - still a real, directly observed position,
+# not an estimate propagated from elsewhere.
+ARRIVAL_PROXIMITY_METERS = 150
+# Slavkov gets a tighter radius: road construction around the bus station (as of
+# 2026-10-13) means a detour route could pass near the stop's coordinates without the
+# vehicle actually serving it, and a false-positive departure checkpoint there is worse
+# than a missed one. Exact stop_id matches are unaffected either way.
+SLAVKOV_PROXIMITY_METERS = 80
 
 
 def haversine_distance_m(lon1, lat1, lon2, lat2):
