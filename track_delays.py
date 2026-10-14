@@ -26,6 +26,7 @@ import json
 import math
 import os
 import re
+import time
 import zipfile
 import io
 import urllib.request
@@ -147,10 +148,22 @@ def get_car_drive_minutes():
         return None, f"mapy.com routing call failed: {exc}"
 
 
-def fetch(url, dest_path=None):
+def fetch(url, dest_path=None, retries=3, retry_delay_seconds=5):
+    """Fetches a URL, retrying a few times on transient network errors before giving up.
+    Confirmed 2026-10-14: a single ConnectionRefusedError against KORDIS's static GTFS
+    endpoint (no HTTP response at all, not even a 4xx/5xx - just the connection being
+    refused) crashed the whole morning-precise-watch run before it polled even once,
+    since this call had zero resilience and nothing upstream caught the exception."""
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        data = resp.read()
+    for attempt in range(1, retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = resp.read()
+            break
+        except Exception:
+            if attempt == retries:
+                raise
+            time.sleep(retry_delay_seconds)
     if dest_path:
         with open(dest_path, "wb") as f:
             f.write(data)
