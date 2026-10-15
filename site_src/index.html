@@ -369,7 +369,7 @@
   const TRIGGER_URL = "https://api.github.com/repos/kisla/dojizdeni-slavkov/actions/workflows/on-demand-measure.yml/dispatches";
   const TRIGGER_TOKEN = "__GH_ACTIONS_PAT__";
 
-  const ROUTE_LABELS = { "106": "Bus 106", "S6": "Vlak S6" };
+  const ROUTE_LABELS = { "106": "Bus 106", "S6": "Vlak S6", "601": "Bus 601" };
 
   function fmtTime(iso) {
     try {
@@ -401,6 +401,7 @@
     const car = status.car || {};
     const bus = status["106"] || {};
     const train = status["S6"] || {};
+    const bus601 = status["601"] || {};
 
     // Car ETA is computed client-side from "now" so it stays accurate between refreshes,
     // not from when the measurement was taken.
@@ -450,6 +451,7 @@
       </div>
       ${transitCard("🚌", "Bus 106 → Brno", "bus", bus)}
       ${transitCard("🚆", "Vlak S6 → Brno", "vlak", train)}
+      ${transitCard("🚌", "Bus 601 → Brno", "bus", bus601)}
     `;
 
     document.getElementById("generated-at").textContent = status.generated_at ? fmtTime(status.generated_at) : "—";
@@ -458,7 +460,7 @@
 
   function renderWatchTable(morningWatch) {
     const rows = [];
-    for (const [route, label] of [["106", "Bus 106"], ["S6", "Vlak S6"]]) {
+    for (const [route, label] of [["106", "Bus 106"], ["S6", "Vlak S6"], ["601", "Bus 601"]]) {
       for (const d of morningWatch[route] || []) {
         rows.push({ route, label, ...d });
       }
@@ -512,7 +514,7 @@
   }
 
   function renderHistory(rows) {
-    const relevant = rows.filter(r => r.route === "106" || r.route === "S6" || r.route === "CAR");
+    const relevant = rows.filter(r => r.route === "106" || r.route === "S6" || r.route === "601" || r.route === "CAR");
     const recent = relevant.slice(-30).reverse();
     if (recent.length === 0) {
       document.getElementById("history-body").innerHTML = '<tr><td colspan="7" class="empty-state">Zatím žádná data.</td></tr>';
@@ -534,7 +536,7 @@
     let html = "";
     timestamps.forEach(ts => {
       const entry = byTimestamp[ts];
-      ["106", "S6"].forEach(route => {
+      ["106", "S6", "601"].forEach(route => {
         if (!entry[route]) return;
         const r = entry[route];
         const delay = r.delay_min !== "" && r.delay_min !== undefined ? r.delay_min : null;

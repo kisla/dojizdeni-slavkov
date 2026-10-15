@@ -37,7 +37,12 @@ from google.transit import gtfs_realtime_pb2
 
 GTFS_STATIC_URL = "https://kordis-jmk.cz/gtfs/gtfs.zip"
 GTFS_RT_URL = "https://kordis-jmk.cz/gtfs/gtfsReal.dat"
-ROUTES_OF_INTEREST = {"106": "bus", "S6": "train"}
+ROUTES_OF_INTEREST = {"106": "bus", "S6": "train", "601": "bus"}
+# direction_id has no fixed meaning across routes in this feed - it's assigned per route,
+# not globally. For 106 and S6, "1" happens to mean Brno-bound; for 601 it's the opposite
+# ("1" terminates back at Slavkov, "0" is the Brno-bound direction) - confirmed 2026-10-15
+# by checking which direction's trips actually end at a Slavkov vs. a Brno stop.
+BRNO_BOUND_DIRECTION_ID = {"106": "1", "S6": "1", "601": "0"}
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "gtfs_cache")
 STATIC_ZIP_PATH = os.path.join(CACHE_DIR, "gtfs.zip")
 LOG_PATH = os.path.join(os.path.dirname(__file__), "dojizdeni_log_rijen2026.csv")
@@ -61,6 +66,9 @@ ORIGIN_STOP_IDS = {
     "106": {"U16328Z2", "U16328Z3", "U16328Z8", "U16328Z10", "U16328Z7", "U16328Z1",
             "U16328Z5", "U16328Z57", "U16328Z9", "U16328Z69", "U16328Z59", "U16328Z6", "U16328N107"},
     "S6": {"U16333Z1", "U16333Z2", "U16333Z11", "U16333Z10", "U16333N246"},
+    # 601 shares the same physical bus station as 106 - reuse its platform set.
+    "601": {"U16328Z2", "U16328Z3", "U16328Z8", "U16328Z10", "U16328Z7", "U16328Z1",
+            "U16328Z5", "U16328Z57", "U16328Z9", "U16328Z69", "U16328Z59", "U16328Z6", "U16328N107"},
 }
 
 # Polni 332, Slavkov u Brna -> Vlnena/Digiteq Automotive, Prizova 7, Brno-stred
@@ -70,10 +78,12 @@ MAPY_ROUTING_URL = "https://api.mapy.com/v1/routing/route"
 
 # Terminus stop for each route's Brno-bound trips (last stop_id in the trip), used to
 # estimate "arrival at destination" time. Looked up once from stop_times.txt/stops.txt:
-# bus 106 -> UAN Zvonarka, train S6 -> Hlavni nadrazi.
+# bus 106 -> UAN Zvonarka, train S6 -> Hlavni nadrazi, bus 601 -> UAN Zvonarka (different
+# platform/stop_id than 106, even though it's the same station complex).
 DEST_STOP_IDS = {
     "106": "U1696Z6",   # UAN Zvonarka
     "S6": "U1146Z99",   # Hlavni nadrazi
+    "601": "U1696Z3",   # UAN Zvonarka (different platform than 106)
 }
 # Confirmed 2026-10-13: requiring the GTFS-RT feed's reported stop_id to exactly equal
 # the terminus stop_id (matched only on whichever single poll happens to land while the
@@ -106,14 +116,18 @@ def haversine_distance_m(lon1, lat1, lon2, lat2):
 WALK_MINUTES_TO_OFFICE = {
     "106": 8,   # UAN Zvonarka -> Vlnena (~560 m)
     "S6": 7,    # Hlavni nadrazi -> Vlnena (~460 m)
+    "601": 8,   # Same station complex as 106, just a different platform - same walk.
 }
 
 # Realistic morning-commute departures from Slavkov u Brna worth tracking every weekday
 # (picked from the actual timetable so office arrival lands roughly 07:25-08:30):
-# bus 106 is ~25 min to UAN Zvonarka + 8 min walk, S6 is ~37 min to Hlavni nadrazi + 7 min walk.
+# bus 106 is ~25 min to UAN Zvonarka + 8 min walk, S6 is ~37 min to Hlavni nadrazi + 7 min
+# walk, bus 601 runs on a near-identical schedule to 106 (added 2026-10-15 after Petr
+# noticed it serves the same Slavkov -> UAN Zvonarka corridor and wasn't tracked at all).
 MONITORED_DEPARTURES = {
     "106": ["06:52", "07:22", "07:52"],
     "S6": ["06:43", "07:06", "07:43"],
+    "601": ["06:43", "07:13", "07:53"],
 }
 
 # Public, unauthenticated endpoint behind idsjmk.cz's own "Aktualni informace" banner
@@ -195,13 +209,18 @@ def load_route_ids(zf):
 
 
 def load_relevant_trips(zf, route_ids):
-    """Returns dict trip_id -> (route_short_name, headsign, service_id), restricted to direction_id==1 (towards Brno)."""
+    """Returns dict trip_id -> (route_short_name, headsign, service_id), restricted to the
+    Brno-bound direction_id for each route (see BRNO_BOUND_DIRECTION_ID - this isn't always
+    "1", direction_id is assigned independently per route)."""
     trips = {}
     with zf.open("trips.txt") as f:
         reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
         for row in reader:
-            if row["route_id"] in route_ids and row.get("direction_id") == "1":
-                trips[row["trip_id"]] = (route_ids[row["route_id"]], row.get("trip_headsign", ""), row["service_id"])
+            route_name = route_ids.get(row["route_id"])
+            if route_name is None:
+                continue
+            if row.get("direction_id") == BRNO_BOUND_DIRECTION_ID.get(route_name, "1"):
+                trips[row["trip_id"]] = (route_name, row.get("trip_headsign", ""), row["service_id"])
     return trips
 
 
