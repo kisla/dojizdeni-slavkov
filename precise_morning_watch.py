@@ -57,6 +57,10 @@ def resolve_targets(today):
                 "brno_lonlat": stop_lonlat.get(brno_stop_id),
                 "slavkov_done": False, "brno_done": False,
                 "slavkov_time": "", "brno_time": "",
+                # Diagnostics for the "still missing" summary at the end of the run - lets
+                # a future miss distinguish "never saw this vehicle at all" from "saw it,
+                # but it was never close enough" without needing to reproduce it live.
+                "seen_count": 0, "slavkov_closest_m": None, "brno_closest_m": None,
             })
     return targets, stop_times
 
@@ -109,6 +113,7 @@ def poll_once(targets, stop_times, now):
         t = by_trip.get(v.trip.trip_id)
         if t is None:
             continue
+        t["seen_count"] += 1
         reported_stop_id = td.normalize_stop_id(v.stop_id)
         for checkpoint, stop_key, lonlat_key in (
             ("slavkov", "slavkov_stop_id", "slavkov_lonlat"),
@@ -129,6 +134,9 @@ def poll_once(targets, stop_times, now):
                 target_lon, target_lat = t[lonlat_key]
                 distance_m = td.haversine_distance_m(
                     v.position.longitude, v.position.latitude, target_lon, target_lat)
+                closest_key = f"{checkpoint}_closest_m"
+                if t[closest_key] is None or distance_m < t[closest_key]:
+                    t[closest_key] = distance_m
             threshold_m = td.SLAVKOV_PROXIMITY_METERS if checkpoint == "slavkov" else td.ARRIVAL_PROXIMITY_METERS
             proximity_match = distance_m is not None and distance_m <= threshold_m
             if not (exact_match or proximity_match):
@@ -182,7 +190,12 @@ def main():
     unresolved = [t for t in targets if not (t["slavkov_done"] and t["brno_done"])]
     for t in unresolved:
         missing = [c for c in ("slavkov", "brno") if not t[f"{c}_done"]]
-        print(f"Window ended, still missing for {t['route']} {t['departure']}: {missing}")
+        details = []
+        for c in missing:
+            closest = t[f"{c}_closest_m"]
+            closest_desc = f"{closest:.0f}m" if closest is not None else "never had a position fix"
+            details.append(f"{c} (seen {t['seen_count']}x, closest approach: {closest_desc})")
+        print(f"Window ended, still missing for {t['route']} {t['departure']}: {', '.join(details)}")
     print(f"Done watching. {len(targets) - len(unresolved)}/{len(targets)} fully resolved.")
 
     # Regenerate latest_status.json from a fresh live snapshot + the now-enriched history.
