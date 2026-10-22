@@ -61,6 +61,7 @@ def resolve_targets(today):
                 # a future miss distinguish "never saw this vehicle at all" from "saw it,
                 # but it was never close enough" without needing to reproduce it live.
                 "seen_count": 0, "slavkov_closest_m": None, "brno_closest_m": None,
+                "slavkov_near_miss_reason": None, "brno_near_miss_reason": None,
             })
     return targets, stop_times
 
@@ -141,23 +142,34 @@ def poll_once(targets, stop_times, now):
             proximity_match = distance_m is not None and distance_m <= threshold_m
             if not (exact_match or proximity_match):
                 continue
+            # From here on, the position condition is satisfied (exact stop or close
+            # enough) - any further rejection is a genuine near-miss worth explaining in
+            # the end-of-run diagnostics, not just silently dropped, since "close enough
+            # but still rejected" points at a different bug than "never got close".
+            near_miss_key = f"{checkpoint}_near_miss_reason"
+            match_kind = "exact stop" if exact_match else f"{distance_m:.0f}m"
             # Always look up the scheduled time via the target's own known stop_id, not
             # whatever stop_id the feed happened to report - a proximity match may not
             # report the target stop_id at all.
             key = (v.trip.trip_id, target_stop_id)
             if key not in stop_times:
+                t[near_miss_key] = f"{match_kind} match but stop_id not in static stop_times"
                 continue
             arrival_str, departure_str = stop_times[key]
             sched_str = departure_str if checkpoint == "slavkov" else arrival_str
             try:
                 sched_epoch = td.gtfs_time_to_epoch(sched_str, now.date())
-            except Exception:
+            except Exception as exc:
+                t[near_miss_key] = f"{match_kind} match but scheduled-time parse failed: {exc}"
                 continue
             actual_epoch = v.timestamp
-            if (now.timestamp() - actual_epoch) / 60 > td.STALE_VEHICLE_MAX_AGE_MINUTES:
+            age_min = (now.timestamp() - actual_epoch) / 60
+            if age_min > td.STALE_VEHICLE_MAX_AGE_MINUTES:
+                t[near_miss_key] = f"{match_kind} match but position was {age_min:.1f}min stale"
                 continue
             delay_min = round((actual_epoch - sched_epoch) / 60, 1)
             if abs(delay_min) > td.MAX_PLAUSIBLE_DELAY_MINUTES:
+                t[near_miss_key] = f"{match_kind} match but delay {delay_min}min ruled implausible"
                 continue
             actual_time = datetime.datetime.fromtimestamp(actual_epoch, td.PRAGUE_TZ).strftime("%H:%M")
             t[f"{checkpoint}_done"] = True
@@ -194,7 +206,9 @@ def main():
         for c in missing:
             closest = t[f"{c}_closest_m"]
             closest_desc = f"{closest:.0f}m" if closest is not None else "never had a position fix"
-            details.append(f"{c} (seen {t['seen_count']}x, closest approach: {closest_desc})")
+            near_miss = t[f"{c}_near_miss_reason"]
+            reason_desc = f" - {near_miss}" if near_miss else ""
+            details.append(f"{c} (seen {t['seen_count']}x, closest approach: {closest_desc}{reason_desc})")
         print(f"Window ended, still missing for {t['route']} {t['departure']}: {', '.join(details)}")
     print(f"Done watching. {len(targets) - len(unresolved)}/{len(targets)} fully resolved.")
 
