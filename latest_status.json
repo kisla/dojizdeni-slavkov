@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-10-22T08:56:14.639793+02:00",
+  "generated_at": "2026-10-23T08:56:20.271179+02:00",
   "car": {
-    "drive_min": 32.9,
+    "drive_min": 24.1,
     "note": "",
-    "eta": "09:29",
+    "eta": "09:20",
     "departure_time": "09:00",
-    "historical_avg_min": 28.0,
-    "historical_sample_size": 5
+    "historical_avg_min": 27.3,
+    "historical_sample_size": 6
   },
   "106": {
     "next_departure": "09:52",
     "platform": "2",
-    "live_delay_min": -3.0,
-    "historical_avg_delay_min": -5.4,
-    "historical_sample_size": 15,
+    "live_delay_min": -2.8,
+    "historical_avg_delay_min": -5.2,
+    "historical_sample_size": 16,
     "dest_arrival_scheduled": "10:17",
     "walk_min": 8,
     "eta": "10:22",
@@ -28,130 +28,130 @@
       {
         "departure": "06:52",
         "platform": "2",
-        "live_delay_min": 18.1,
-        "historical_avg_delay_min": 3.3,
-        "historical_sample_size": 20,
+        "live_delay_min": 6.7,
+        "historical_avg_delay_min": 3.2,
+        "historical_sample_size": 22,
         "dest_arrival_scheduled": "07:17",
-        "eta": "07:43",
+        "eta": "07:32",
         "eta_note": null,
         "slavkov_time": "06:51",
-        "brno_time": "07:35",
-        "distance_m": 1132.0
+        "brno_time": "07:23",
+        "distance_m": 1030.0
       },
       {
         "departure": "07:22",
         "platform": "2",
-        "live_delay_min": -0.2,
-        "historical_avg_delay_min": 1.5,
-        "historical_sample_size": 19,
+        "live_delay_min": 0.3,
+        "historical_avg_delay_min": 1.3,
+        "historical_sample_size": 21,
         "dest_arrival_scheduled": "07:47",
         "eta": "07:55",
         "eta_note": null,
-        "slavkov_time": "07:21",
-        "brno_time": null,
-        "distance_m": null
+        "slavkov_time": "07:20",
+        "brno_time": "07:47",
+        "distance_m": 1091.0
       },
       {
         "departure": "07:52",
         "platform": "2",
-        "live_delay_min": 9.6,
-        "historical_avg_delay_min": 4.8,
-        "historical_sample_size": 27,
+        "live_delay_min": 1.2,
+        "historical_avg_delay_min": 4.5,
+        "historical_sample_size": 29,
         "dest_arrival_scheduled": "08:17",
-        "eta": "08:35",
+        "eta": "08:26",
         "eta_note": null,
-        "slavkov_time": "08:01",
-        "brno_time": null,
-        "distance_m": null
+        "slavkov_time": "07:50",
+        "brno_time": "08:18",
+        "distance_m": 1071.0
       }
     ],
     "S6": [
       {
         "departure": "06:43",
         "platform": null,
-        "live_delay_min": 1.4,
+        "live_delay_min": null,
         "historical_avg_delay_min": 0.3,
         "historical_sample_size": 15,
         "dest_arrival_scheduled": "07:20",
-        "eta": "07:28",
+        "eta": "07:27",
         "eta_note": null,
-        "slavkov_time": "06:37",
-        "brno_time": "07:21",
-        "distance_m": 26.0
+        "slavkov_time": null,
+        "brno_time": null,
+        "distance_m": null
       },
       {
         "departure": "07:06",
         "platform": null,
-        "live_delay_min": -0.5,
+        "live_delay_min": null,
         "historical_avg_delay_min": 1.4,
         "historical_sample_size": 17,
         "dest_arrival_scheduled": "07:33",
-        "eta": "07:40",
+        "eta": "07:41",
         "eta_note": null,
-        "slavkov_time": "07:04",
-        "brno_time": "07:32",
-        "distance_m": 26.0
+        "slavkov_time": null,
+        "brno_time": null,
+        "distance_m": null
       },
       {
         "departure": "07:43",
         "platform": null,
-        "live_delay_min": 9.9,
+        "live_delay_min": null,
         "historical_avg_delay_min": -0.7,
         "historical_sample_size": 19,
         "dest_arrival_scheduled": "08:20",
-        "eta": "08:37",
+        "eta": "08:26",
         "eta_note": null,
-        "slavkov_time": "07:42",
-        "brno_time": "08:29",
-        "distance_m": 26.0
+        "slavkov_time": null,
+        "brno_time": null,
+        "distance_m": null
       }
     ],
     "601": [
       {
         "departure": "06:43",
         "platform": "1",
-        "live_delay_min": 19.0,
+        "live_delay_min": null,
         "historical_avg_delay_min": 10.4,
         "historical_sample_size": 9,
         "dest_arrival_scheduled": "07:16",
-        "eta": "07:43",
+        "eta": "07:34",
         "eta_note": null,
-        "slavkov_time": "06:45",
-        "brno_time": "07:34",
-        "distance_m": 1096.0
+        "slavkov_time": null,
+        "brno_time": null,
+        "distance_m": null
       },
       {
         "departure": "07:13",
         "platform": "1",
-        "live_delay_min": 0.9,
+        "live_delay_min": null,
         "historical_avg_delay_min": 4.7,
         "historical_sample_size": 8,
         "dest_arrival_scheduled": "07:46",
-        "eta": "07:55",
+        "eta": "07:59",
         "eta_note": null,
-        "slavkov_time": "07:13",
+        "slavkov_time": null,
         "brno_time": null,
         "distance_m": null
       },
       {
         "departure": "07:53",
         "platform": "1",
-        "live_delay_min": 17.5,
+        "live_delay_min": null,
         "historical_avg_delay_min": 5.8,
         "historical_sample_size": 10,
         "dest_arrival_scheduled": "08:26",
-        "eta": "08:52",
+        "eta": "08:40",
         "eta_note": null,
-        "slavkov_time": "07:57",
-        "brno_time": "08:43",
-        "distance_m": 1082.0
+        "slavkov_time": null,
+        "brno_time": null,
+        "distance_m": null
       }
     ]
   },
   "S6": {
     "next_departure": "09:13",
     "platform": null,
-    "live_delay_min": 4.8,
+    "live_delay_min": null,
     "historical_avg_delay_min": 4.6,
     "historical_sample_size": 14,
     "dest_arrival_scheduled": "09:48",
@@ -159,8 +159,8 @@
     "eta": "10:00",
     "eta_note": null,
     "incident": null,
-    "slavkov_time": "09:18",
-    "brno_time": "09:53",
+    "slavkov_time": null,
+    "brno_time": null,
     "distance_m": null
   },
   "601": {
