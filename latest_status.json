@@ -1,24 +1,27 @@
 {
-  "generated_at": "2026-10-30T08:56:58.724754+01:00",
+  "generated_at": "2026-11-02T08:56:13.375457+01:00",
   "car": {
-    "drive_min": 20.1,
+    "drive_min": 31.9,
     "note": "",
-    "eta": "09:17",
+    "eta": "09:28",
     "departure_time": "09:00",
-    "historical_avg_min": 27.6,
-    "historical_sample_size": 8
+    "historical_avg_min": 28.1,
+    "historical_sample_size": 9
   },
   "106": {
-    "next_departure": null,
-    "platform": null,
+    "next_departure": "09:52",
+    "platform": "2",
     "live_delay_min": null,
-    "historical_avg_delay_min": null,
-    "historical_sample_size": 0,
-    "dest_arrival_scheduled": null,
+    "historical_avg_delay_min": -5.0,
+    "historical_sample_size": 17,
+    "dest_arrival_scheduled": "10:17",
     "walk_min": 8,
-    "eta": null,
+    "eta": "10:20",
     "eta_note": null,
-    "incident": null,
+    "incident": {
+      "text": "Nepravidelnost a hustá doprava ve Slavkově u Brna a okolí je příčinou zdržení autobusových linek cca 5 až 15 minut (linky 106, 601, 630, 631 ojediněle i 620, 632). Děkujeme za pochopení.",
+      "time": "2026-11-02T07:28:28.830052+01:00"
+    },
     "slavkov_time": null,
     "brno_time": null,
     "distance_m": null
@@ -173,7 +176,10 @@
     "walk_min": 8,
     "eta": "09:54",
     "eta_note": null,
-    "incident": null,
+    "incident": {
+      "text": "Nepravidelnost a hustá doprava ve Slavkově u Brna a okolí je příčinou zdržení autobusových linek cca 5 až 15 minut (linky 106, 601, 630, 631 ojediněle i 620, 632). Děkujeme za pochopení.",
+      "time": "2026-11-02T07:28:28.830052+01:00"
+    },
     "slavkov_time": null,
     "brno_time": null,
     "distance_m": null
